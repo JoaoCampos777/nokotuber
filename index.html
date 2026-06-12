@@ -3,10 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src ipc: http://ipc.localhost ws://localhost:1420 http://localhost:1420"
-    />
+    <meta 
+  content="default-src 'self'; connect-src 'self' ws://localhost:* ws://127.0.0.1:* ws://*:* wss://*:*; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline';"
+  />
     <title>Nokotuber</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }

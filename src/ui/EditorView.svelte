@@ -4,6 +4,15 @@
   import AboutModal from "./components/AboutModal.svelte";
   import ViewSettingsPanel from "./panels/ViewSettingsPanel.svelte";
   import EffectsPanel from "./panels/EffectsPanel.svelte";
+  import ExpressionTabsPanel from "./components/ExpressionTabsPanel.svelte";
+  import VoiceReactionSettings from "./components/VoiceReactionSettings.svelte";
+  import MicrophoneSettings from "./components/MicrophoneSettings.svelte";
+  import RoomStage from "./components/RoomStage.svelte";
+  import { room, toggleRoomMode } from "../room/roomStore";
+  import RoomPanel from "./components/RoomPanel.svelte";
+  import { startSharedMicProvider } from "../audio/sharedMicrophoneProvider";
+  import { participantEffects } from "../effects/participantEffectsStore";
+  import { collectProjectFile, loadProjectFile, resetProjectFile } from "../project/projectPersistence";
   import {
     togglePerformanceWindow, getAppVersion, isTauriEnv, importImageFile,
     saveProjectAs, saveProjectAtPath, openProjectFile, exportProjectZip,
@@ -13,22 +22,30 @@
     setImage, clearImage, updateBlinkConfig,
     newProject, toggleDefaultAvatar, loadProject, type ImageSlot,
   } from "../project/projectStore";
-  import { audioLevel, isTalking, audioThreshold, isAudioActive, startAudioCapture, stopAudioCapture } from "../audio/audioStore";
+  import { audioLevel, isTalking, audioThreshold, isAudioActive, startAudioCapture, stopAudioCapture, simulateReaction, voiceReactionRule, isReacting, activeVoiceReactions } from "../audio/audioStore";
   import { avatarState, currentImageUrl, startAvatarController } from "../avatar/avatarController";
   import { emit, listen } from "@tauri-apps/api/event";
   import { get } from "svelte/store";
   import { APP_NAME } from "../config/brand";
   import { APP_ICON_URL, DEFAULT_AVATAR } from "../config/defaultAvatar";
+  import { initHotkeyManager } from "../hotkeys/hotkeyManager";
+  import { expressionState } from "../project/expressionStore";
 
   let appVersion    = "0.1.0";
   let openingPerf   = false;
   let perfOpen      = false;
   let importingSlot: ImageSlot | null = null;
   let showAbout     = false;
-  let leftTab: "avatar" | "visual" = "avatar";
+  let leftTab: "avatar" | "visual" | "expr" | "sala" = "avatar";
   let stopController: (() => void) | null = null;
+  let stopHotkeys:    (() => void) | null = null;
+  let stopMicProvider: (() => void) | null = null;
   let frameTimer: ReturnType<typeof setInterval> | null = null;
   let lastImagesRef: any = null;
+  let lastExprStructSig = "";
+  let lastRoomAvatarsSig = "";
+  let lastEffectsSig = "";
+
 
   let toastMsg = ""; let toastType: "success" | "error" | "info" = "info";
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -54,21 +71,33 @@
   onMount(async () => {
     if (inTauri) appVersion = await getAppVersion();
     stopController = startAvatarController();
+    stopHotkeys = initHotkeyManager();
+    stopMicProvider = startSharedMicProvider();
 
     if (inTauri) {
       // Performance pediu o estado inicial → envia config + imagens + imagem atual
       listen("performance:ready", () => {
-        perfOpen = true;
+        // Janela pronta para receber sync — NÃO significa que está visível.
+        // perfOpen reflete só a visibilidade (definida ao abrir/fechar pelo botão).
         emitConfig();
         emitImages(true);
+        emitExpression();
+        emitReactionRule();
+        emitReactionState();
+        emitRoom(true);
+        emitParticipantEffects(true);
         emit("avatar:image-changed", get(currentImageUrl)).catch(() => {});
       }).catch(() => {});
+
 
       // Detecta fechamento da janela de performance
       listen("tauri://destroyed", (event: any) => {
         const label = event?.windowLabel ?? event?.payload?.label;
         if (label === "performance") perfOpen = false;
       }).catch(() => {});
+
+      // Quando a janela é ocultada por dentro (Esc), o botão volta para "Modo Janela".
+      listen("performance:hidden", () => { perfOpen = false; }).catch(() => {});
 
       // Frame loop: envia estado + volume a 30fps (payload minúsculo)
       frameTimer = setInterval(() => {
@@ -81,6 +110,8 @@
 
   onDestroy(() => {
     stopController?.();
+    stopHotkeys?.();
+    stopMicProvider?.();
     if (toastTimer) clearTimeout(toastTimer);
     if (frameTimer) clearInterval(frameTimer);
   });
@@ -100,10 +131,63 @@
     lastImagesRef = imgs;
     emit("nokotuber:images", imgs).catch(() => {});
   }
+  function emitExpression(force = false) {
+    const st = get(expressionState);
+    // Assinatura só da estrutura+imagens (ignora qual está ativa) → evita reenviar base64 ao só trocar de expressão
+    const structSig = JSON.stringify(st.sets.map((s) => ({
+      id: s.id, name: s.name,
+      expressions: s.expressions.map((e) => ({
+        id: e.id, name: e.name, slot: e.slot, hotkey: e.hotkey, fallbackColor: e.fallbackColor, images: e.images,
+      })),
+    })));
+    if (force || structSig !== lastExprStructSig) {
+      lastExprStructSig = structSig;
+      emit("nokotuber:expression", st).catch(() => {});
+    }
+    emit("nokotuber:expression-active", { activeSetId: st.activeSetId, activeExpressionId: st.activeExpressionId }).catch(() => {});
+  }
+
+  function emitRoom(force = false) {
+    const r = get(room);
+    const avSig = JSON.stringify(r.avatars);
+    if (force || avSig !== lastRoomAvatarsSig) {
+      lastRoomAvatarsSig = avSig;
+      emit("nokotuber:room-avatars", r.avatars).catch(() => {});
+    }
+    emit("nokotuber:room-state", {
+      enabled: r.enabled, maxParticipants: r.maxParticipants, layoutMode: r.layoutMode,
+      participants: r.participants,
+    }).catch(() => {});
+  }
+
+  function emitParticipantEffects(force = false) {
+    const list = get(participantEffects);
+    const sig = JSON.stringify(list);
+    if (force || sig !== lastEffectsSig) {
+      lastEffectsSig = sig;
+      emit("nokotuber:participant-effects", list).catch(() => {});
+    }
+  }
+
+  function handleRoomToggle() {
+    toggleRoomMode();
+    if (get(room).enabled) leftTab = "sala";
+    else if (leftTab === "sala") leftTab = "avatar";
+  }
+
+
+  function emitReactionRule()  { emit("nokotuber:reaction-rule", get(voiceReactionRule)).catch(() => {}); }
+  function emitReactionState() { emit("nokotuber:reaction-state", { isReacting: get(isReacting), types: get(activeVoiceReactions) }).catch(() => {}); }
 
   $: if (inTauri && perfOpen) { $project.view; $project.effects; $project.blinkConfig; $project.audioConfig; $project.useDefaultAvatar; emitConfig(); }
   $: if (inTauri && perfOpen) { if ($project.images !== lastImagesRef) { lastImagesRef = $project.images; emit("nokotuber:images", $project.images).catch(() => {}); } }
   $: if (inTauri) emit("avatar:image-changed", $currentImageUrl).catch(() => {});
+  $: if (inTauri && perfOpen && $expressionState) emitExpression();
+  $: if (inTauri && perfOpen && $voiceReactionRule) emitReactionRule();
+  $: reactionSig = `${$isReacting}|${$activeVoiceReactions.join(",")}`;
+  $: if (inTauri && perfOpen && reactionSig) emitReactionState();
+  $: if (inTauri && perfOpen && $room) emitRoom();
+  $: if (inTauri && perfOpen && $participantEffects) emitParticipantEffects();
 
   // ─── Toast ───
   function showToast(msg: string, type: "success" | "error" | "info" = "info") {
@@ -122,6 +206,11 @@
         // Garante que a janela receba o estado atual ao abrir
         emitConfig();
         emitImages(true);
+        emitExpression();
+        emitReactionRule();
+        emitReactionState();
+        emitRoom(true);
+        emitParticipantEffects(true);
         emit("avatar:image-changed", get(currentImageUrl)).catch(() => {});
       }
       showToast(isOpen ? "Modo Janela ativado" : "Modo Janela fechado", "success");
@@ -133,21 +222,25 @@
   }
   function handleNew() {
     if ($isDirty && !window.confirm("Há alterações não salvas. Criar novo projeto?")) return;
-    newProject(); showToast("Novo projeto criado", "info");
+    newProject(); resetProjectFile(); showToast("Novo projeto criado", "info");
   }
   async function handleOpen() {
     if ($isDirty && !window.confirm("Há alterações não salvas. Continuar?")) return;
     try {
       const r = await openProjectFile();
       if (!r) return;
-      loadProject(r.content, r.path);
-      if (inTauri && perfOpen) { emitConfig(); emitImages(true); }
+      loadProjectFile(r.content, r.path);
+      if (inTauri && perfOpen) {
+        emitConfig(); emitImages(true);
+        emitExpression(true); emitReactionRule(); emitReactionState();
+        emitRoom(true); emitParticipantEffects(true);
+      }
       showToast("Projeto aberto", "success");
     } catch (e: any) { showToast(e.message ?? "Erro ao abrir", "error"); }
   }
   async function handleSave() {
     try {
-      const data = get(project);
+      const data = collectProjectFile();
       const content = JSON.stringify(data, null, 2);
       const path = get(currentProjectPath);
       if (path) { await saveProjectAtPath(path, content); }
@@ -160,7 +253,7 @@
   }
   async function handleExport() {
     try {
-      const data = get(project);
+      const data = collectProjectFile();
       const path = await exportProjectZip(JSON.stringify(data), `${data.name}.zip`);
       if (path) showToast(`Exportado: ${path.split(/[\\/]/).pop()}`, "success");
     } catch (e: any) { showToast(e.message ?? "Erro ao exportar", "error"); }
@@ -199,6 +292,9 @@
       <button class="btn btn-ghost" disabled={saveDisabled} on:click={handleSave}>Salvar</button>
       <button class="btn btn-ghost" on:click={handleExport}>Exportar</button>
       <button class="btn btn-ghost btn-icon-only" on:click={() => showAbout = true} title="Sobre">ℹ</button>
+      <button class="btn btn-ghost" class:btn-active={$room.enabled} on:click={handleRoomToggle} title="Alternar modo sala">
+        {$room.enabled ? "👥 Sala: ON" : "👤 Sala: OFF"}
+      </button>
       <div class="topbar-divider" />
       <button class="btn" class:btn-accent={!perfOpen} class:btn-stop={perfOpen} on:click={handlePerformanceToggle} disabled={openingPerf}>
         {#if openingPerf}…{:else if perfOpen}■ Fechar Janela{:else}▶ Modo Janela{/if}
@@ -213,6 +309,10 @@
       <div class="tabs">
         <button class="tab" class:active={leftTab === "avatar"} on:click={() => leftTab = "avatar"}>Avatar</button>
         <button class="tab" class:active={leftTab === "visual"} on:click={() => leftTab = "visual"}>Visualização</button>
+        <button class="tab" class:active={leftTab === "expr"} on:click={() => leftTab = "expr"}>Expressões</button>
+        {#if $room.enabled}
+          <button class="tab" class:active={leftTab === "sala"} on:click={() => leftTab = "sala"}>Sala</button>
+        {/if}
       </div>
 
       {#if leftTab === "avatar"}
@@ -262,14 +362,22 @@
             <input class="config-range" type="range" min="50" max="500" step="10" value={$project.blinkConfig.duration} on:input={onDuration} />
             <span class="config-value">{$project.blinkConfig.duration}ms</span></div>
         </div>
-      {:else}
+      {:else if leftTab === "visual"}
         <ViewSettingsPanel />
+      {:else if leftTab === "sala"}
+        <div class="expr-wrap"><RoomPanel /></div>
+      {:else}
+        <div class="expr-wrap"><ExpressionTabsPanel /></div>
       {/if}
     </aside>
 
     <!-- CENTRO -->
     <main class="editor-center">
-      <AvatarStage width={640} height={480} transparent={false} />
+      {#if $room.enabled}
+        <RoomStage width={720} height={405} transparent={false} />
+      {:else}
+        <AvatarStage width={640} height={480} transparent={false} />
+      {/if}
     </main>
 
     <!-- DIREITA: Estado + Efeitos -->
@@ -282,6 +390,10 @@
       </div>
       <div class="section-header section-header-top">EFEITOS</div>
       <EffectsPanel />
+      <div class="section-header section-header-top">ÁUDIO</div>
+      <div class="vr-wrap"><MicrophoneSettings /></div>
+      <div class="section-header section-header-top">REAÇÃO DE VOZ</div>
+      <div class="vr-wrap"><VoiceReactionSettings /></div>
     </aside>
 
   </div>
@@ -290,6 +402,7 @@
     <button class="btn btn-sm" class:btn-active={$isAudioActive} on:click={handleToggleAudio}>
       {$isAudioActive ? "🎙 Parar mic" : "🎙 Ligar mic"}
     </button>
+    <button class="btn btn-sm" on:click={simulateReaction} title="Dispara a reação para teste">⚡ Reação</button>
     <div class="audio-group">
       <span class="audio-label">Threshold</span>
       <input class="footer-range" type="range" min="0" max="100" value={$audioThreshold} on:input={onThresholdInput} />
@@ -340,7 +453,7 @@
   .panel-right { width: 250px; border-left:  1px solid var(--color-border); }
 
   .tabs { display: flex; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
-  .tab { flex: 1; background: transparent; border: none; padding: 10px; font-size: 12px; font-weight: 600; color: var(--color-text-dim); cursor: pointer; font-family: inherit; border-bottom: 2px solid transparent; }
+  .tab { flex: 1; background: transparent; border: none; padding: 10px 6px; font-size: 11px; font-weight: 600; color: var(--color-text-dim); cursor: pointer; font-family: inherit; border-bottom: 2px solid transparent; white-space: nowrap; }
   .tab:hover { color: var(--color-text-secondary); }
   .tab.active { color: var(--color-accent); border-bottom-color: var(--color-accent); }
 
@@ -372,6 +485,9 @@
   .config-label { font-size: 10px; color: var(--color-text-secondary); width: 80px; flex-shrink: 0; }
   .config-range { flex: 1; accent-color: var(--color-accent); }
   .config-value { width: 36px; text-align: right; font-size: 10px; color: var(--color-text-dim); }
+
+  .expr-wrap { padding: 10px; }
+  .vr-wrap { padding: 8px 12px 14px; }
 
   .editor-center { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--color-bg-primary); overflow: hidden; }
 

@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod discord_rpc;
+mod companion_server;
 use base64::{engine::general_purpose, Engine as _};
 use serde_json::Value;
 use std::fs;
@@ -114,6 +116,17 @@ fn export_project_zip(zip_path: String, project_json: String) -> Result<(), Stri
     Ok(())
 }
 
+#[tauri::command]
+fn open_companion_window(app: AppHandle) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("companion") { let _ = w.set_focus(); return Ok(()); }
+    tauri::WebviewWindowBuilder::new(&app, "companion", tauri::WebviewUrl::App("index.html?mode=companion".into()))
+        .title("Nokotuber Companion")
+        .inner_size(440.0, 680.0)
+        .build()
+        .map_err(|e| format!("Falha ao abrir janela Companion: {e}"))?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -127,7 +140,27 @@ pub fn run() {
             save_project_file,
             open_project_file,
             export_project_zip,
+            discord_rpc::discord_rpc_connect,
+            discord_rpc::discord_rpc_authenticate,
+            discord_rpc::discord_rpc_disconnect,
+            discord_rpc::discord_rpc_get_selected_voice_channel,
+            discord_rpc::discord_rpc_subscribe_voice_events,
+            discord_rpc::discord_rpc_authorize,
+            discord_rpc::discord_rpc_exchange_pkce,
+            discord_rpc::discord_rpc_authenticate_token,
+            discord_rpc::discord_oauth_pkce_authorize,
+            discord_rpc::discord_rpc_exchange_secret,
+            companion_server::companion_server_start,
+            companion_server::companion_server_stop,
+            open_companion_window,
         ])
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                if window.label() == "main" {
+                    window.app_handle().exit(0);
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("Falha ao iniciar o Nokotuber");
 }

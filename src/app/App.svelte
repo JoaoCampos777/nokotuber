@@ -1,6 +1,21 @@
 <script lang="ts">
+  import CompanionTutorialModal from "../ui/components/CompanionTutorialModal.svelte";
+  import { companionMode } from "../companion/companionUi";
   import EditorView from "../ui/EditorView.svelte";
   import PerformanceView from "../ui/PerformanceView.svelte";
+  import CompanionClientView from "../ui/CompanionClientView.svelte";
+
+
+  function detectCompanion(): boolean {
+    try {
+      const s = (location.search || "") + (location.hash || "");
+      if (s.includes("mode=companion")) return true;
+      const label = (window as any).__TAURI_INTERNALS__?.metadata?.currentWindow?.label;
+      return label === "companion";
+    } catch { return false; }
+  }
+  const isCompanion = detectCompanion();
+
 
   function detectPerformance(): boolean {
     try {
@@ -16,11 +31,14 @@
   const isPerformance = detectPerformance();
 </script>
 
-{#if isPerformance}
+{#if isCompanion || $companionMode}
+  <CompanionClientView />
+{:else if isPerformance}
   <PerformanceView />
 {:else}
   <EditorView />
 {/if}
+<CompanionTutorialModal />
 
 <style>
   :global(*)    { box-sizing: border-box; margin: 0; padding: 0; }

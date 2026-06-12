@@ -2,16 +2,20 @@
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
   import AvatarStage from "./components/AvatarStage.svelte";
+  import RoomStage from "./components/RoomStage.svelte";
+  import { room } from "../room/roomStore";
+  import { participantEffects } from "../effects/participantEffectsStore";
   import { listen, emit } from "@tauri-apps/api/event";
   import { isTauriEnv, closePerformanceWindow } from "../core/desktop";
   import { currentImageUrl, avatarState } from "../avatar/avatarController";
-  import { audioLevel } from "../audio/audioStore";
+  import { audioLevel, isTalking, voiceReactionRule, isReacting, activeVoiceReactions } from "../audio/audioStore";
   import { applyConfigSync, applyImagesSync } from "../project/projectStore";
+  import { expressionState } from "../project/expressionStore";
   import { DEFAULT_AVATAR } from "../config/defaultAvatar";
 
   let windowWidth  = 1280;
   let windowHeight = 720;
-  let showDebug    = true;
+  let showDebug    = false;
   let imgStatus    = "verificando…";
   let debugLines: string[] = [];
   let unlisteners: Array<() => void> = [];
@@ -47,7 +51,6 @@
       currentImageUrl.set(fallback);
       log("imageUrl: " + (fallback ? fallback.slice(0, 45) : "null"));
 
-      // Testa se a imagem realmente carrega nesta janela
       if (fallback) {
         const test = new Image();
         test.onload  = () => { imgStatus = `OK (${test.naturalWidth}×${test.naturalHeight})`; };
@@ -68,8 +71,46 @@
           if (e.payload) applyImagesSync(e.payload);
         }));
         unlisteners.push(await listen<any>("nokotuber:frame", (e) => {
-          if (e.payload) { avatarState.set(e.payload.state); audioLevel.set(e.payload.level); }
+          if (e.payload) {
+            avatarState.set(e.payload.state);
+            audioLevel.set(e.payload.level);
+            isTalking.set(e.payload.state === "talking" || e.payload.state === "blink-talking");
+          }
         }));
+
+        // ─── Sync da Fase 5: expressão + reações de voz ───
+        unlisteners.push(await listen<any>("nokotuber:expression", (e) => {
+          if (e.payload) expressionState.set(e.payload);
+        }));
+        unlisteners.push(await listen<any>("nokotuber:expression-active", (e) => {
+          const p = e.payload; if (!p) return;
+          expressionState.update((s) => ({ ...s, activeSetId: p.activeSetId, activeExpressionId: p.activeExpressionId }));
+        }));
+        unlisteners.push(await listen<any>("nokotuber:reaction-rule", (e) => {
+          if (e.payload) voiceReactionRule.set(e.payload);
+        }));
+        unlisteners.push(await listen<any>("nokotuber:reaction-state", (e) => {
+          const p = e.payload; if (!p) return;
+          isReacting.set(!!p.isReacting);
+          activeVoiceReactions.set(p.isReacting ? (p.types ?? []) : []);
+        }));
+        unlisteners.push(await listen<any>("nokotuber:room-avatars", (e) => {
+          if (e.payload) room.update((r) => ({ ...r, avatars: e.payload }));
+        }));
+        unlisteners.push(await listen<any>("nokotuber:room-state", (e) => {
+          const p = e.payload; if (!p) return;
+          room.update((r) => ({
+            ...r,
+            enabled: !!p.enabled,
+            maxParticipants: p.maxParticipants ?? r.maxParticipants,
+            layoutMode: p.layoutMode ?? r.layoutMode,
+            participants: p.participants ?? r.participants,
+          }));
+        }));
+        unlisteners.push(await listen<any>("nokotuber:participant-effects", (e) => {
+          if (Array.isArray(e.payload)) participantEffects.set(e.payload);
+        }));
+
         await emit("performance:ready", null);
         log("listeners OK, ready enviado");
       }
@@ -86,7 +127,11 @@
 </script>
 
 <div class="performance-root">
-  <AvatarStage width={windowWidth} height={windowHeight} transparent={true} />
+  {#if $room.enabled}
+    <RoomStage width={windowWidth} height={windowHeight} transparent={true} />
+  {:else}
+    <AvatarStage width={windowWidth} height={windowHeight} transparent={true} />
+  {/if}
 
   {#if showDebug}
     <div class="debug">
@@ -94,6 +139,7 @@
       <div>Janela: {windowWidth}×{windowHeight}</div>
       <div>Imagem: <b>{imgStatus}</b></div>
       <div>Estado: {$avatarState}</div>
+      <div>Reação: {$isReacting ? $activeVoiceReactions : "—"}</div>
       <div class="url">imageUrl: {$currentImageUrl ? $currentImageUrl.slice(0, 55) : "null"}</div>
       <hr />
       {#each debugLines as line}<div class="dl">{line}</div>{/each}

@@ -11,6 +11,14 @@ export interface FrameInput {
   effects:    AvatarEffect[];
   state:      AvatarState;
   audioLevel: number;   // 0..1
+  /** Expressão ativa — colore o placeholder enquanto não há imagem. */
+  expression?: { name: string; color: string } | null;
+  /** Reação de voz aplicada apenas ao personagem (preserva chroma key). */
+  voiceReaction?: {
+    types: ("shake" | "strongShake" | "randomMovement" | "scalePulse" | "expressionSwap" | "colorFlash")[];
+    intensity: number;  // 0..100
+    isReacting: boolean;
+  } | null;
 }
 
 export interface RendererOptions {
@@ -28,6 +36,10 @@ export class Renderer2D {
   private targetUrl:   string | null = null;            // imagem desejada
   private drawnImg:    HTMLImageElement | null = null;  // imagem desenhada agora
   private cache:       Map<string, HTMLImageElement> = new Map();
+
+  // Estado interno das reações de voz (aplicadas só ao personagem, não ao fundo)
+  private vrRandomTarget: { x: number; y: number } = { x: 0, y: 0 };
+  private vrRandomLast:   number = 0;
 
   private animFrameId: number  | null = null;
   private transparent: boolean;
@@ -130,7 +142,7 @@ export class Renderer2D {
     this.drawBackground(view);
 
     if (!this.drawnImg || this.drawnImg.naturalWidth <= 0) {
-      if (!this.targetUrl) this.drawPlaceholder();
+      if (!this.targetUrl) this.drawPlaceholder(s.expression ?? null);
       return;
     }
 
@@ -148,15 +160,52 @@ export class Renderer2D {
     const img       = this.drawnImg;
     const baseScale = Math.min(canvas.width / img.naturalWidth, canvas.height / img.naturalHeight);
     const sizeMul   = view.avatarSizeMode === "manual" ? view.sizeMultiplier : 1;
-    const scaleX    = baseScale * sizeMul * fx.scaleX;
-    const scaleY    = baseScale * sizeMul * fx.scaleY;
+
+    // ─── Reação de voz aplicada APENAS ao personagem (o fundo fica intacto) ───
+    // Vários efeitos podem somar ao mesmo tempo (ex.: tremor forte + pulso).
+    const vr    = s.voiceReaction;
+    const vrI   = Math.max(0, Math.min(1, (vr?.intensity ?? 0) / 100));
+    const types = vr?.types ?? [];
+    let vrX = 0, vrY = 0, vrRot = 0, vrScale = 1;
+    if (vr && vr.isReacting && types.length) {
+      const t = nowT / 1000;
+      if (types.includes("shake")) {
+        const amp = 2 + vrI * 6;
+        vrX += Math.sin(t * 30 * Math.PI * 2) * amp;
+      }
+      if (types.includes("strongShake")) {
+        const amp = 6 + vrI * 18;
+        vrX   += Math.sin(t * 22 * Math.PI * 2)   * amp;
+        vrY   += Math.cos(t * 22 * Math.PI * 2.1) * amp * 0.8;
+        vrRot += Math.sin(t * 22 * Math.PI * 2)   * 0.05;
+      }
+      if (types.includes("randomMovement")) {
+        const amp = 8 + vrI * 22;
+        if (nowT - this.vrRandomLast > 80) {
+          this.vrRandomLast = nowT;
+          this.vrRandomTarget = {
+            x: (Math.random() * 2 - 1) * amp,
+            y: (Math.random() * 2 - 1) * amp,
+          };
+        }
+        vrX += this.vrRandomTarget.x;
+        vrY += this.vrRandomTarget.y;
+      }
+      if (types.includes("scalePulse")) {
+        const amp = 0.05 + vrI * 0.25;
+        vrScale *= 1 + amp * (0.5 + 0.5 * Math.sin(t * 2 * Math.PI * 3));
+      }
+    }
+
+    const scaleX = baseScale * sizeMul * fx.scaleX * vrScale;
+    const scaleY = baseScale * sizeMul * fx.scaleY * vrScale;
 
     const w = img.naturalWidth  * scaleX;
     const h = img.naturalHeight * scaleY;
 
     // ─── Posição ───
-    const cx = canvas.width  / 2 + (view.positionX ?? 0) + fx.x;
-    const cy = canvas.height / 2 + (view.positionY ?? 0) + fx.y;
+    const cx = canvas.width  / 2 + (view.positionX ?? 0) + fx.x + vrX;
+    const cy = canvas.height / 2 + (view.positionY ?? 0) + fx.y + vrY;
 
     // ─── Filtros (hue/sat/bri) + brilho do efeito ───
     const f        = view.filters ?? DEFAULT_VIEW_SETTINGS.filters;
@@ -166,7 +215,7 @@ export class Renderer2D {
     ctx.filter = `hue-rotate(${f.hue}deg) saturate(${f.saturation}) brightness(${briTotal})`;
     ctx.globalAlpha = fx.alpha;
     ctx.translate(cx, cy);
-    if (fx.rotation) ctx.rotate(fx.rotation);
+    if (fx.rotation || vrRot) ctx.rotate(fx.rotation + vrRot);
     ctx.drawImage(img, -w / 2, -h / 2, w, h);
     ctx.restore();
   }
@@ -190,11 +239,41 @@ export class Renderer2D {
     }
   }
 
-  private drawPlaceholder(): void {
+  private drawPlaceholder(expression: { name: string; color: string } | null = null): void {
     const { ctx, canvas } = this;
     const cx = canvas.width / 2, cy = canvas.height / 2;
-    const r  = Math.min(canvas.width, canvas.height) * 0.14;
 
+    // ─── Placeholder colorido pela expressão ativa ───
+    if (expression) {
+      const r = Math.min(canvas.width, canvas.height) * 0.18;
+      const color = expression.color || "#6c5ce7";
+      ctx.save();
+
+      // corpo
+      ctx.beginPath();
+      ctx.arc(cx, cy - r * 0.15, r, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(255,255,255,0.25)";
+      ctx.stroke();
+
+      // "olhos" para dar carinha
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.beginPath(); ctx.arc(cx - r * 0.36, cy - r * 0.25, r * 0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + r * 0.36, cy - r * 0.25, r * 0.12, 0, Math.PI * 2); ctx.fill();
+
+      // nome da expressão
+      ctx.fillStyle = "#f4ebe8";
+      ctx.font = `700 ${Math.max(12, r * 0.3)}px 'Segoe UI', system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText(expression.name, cx, cy + r * 1.5);
+      ctx.restore();
+      return;
+    }
+
+    // ─── Placeholder genérico (sem expressão) ───
+    const r = Math.min(canvas.width, canvas.height) * 0.14;
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy - r * 0.3, r * 1.4, 0, Math.PI * 2);
