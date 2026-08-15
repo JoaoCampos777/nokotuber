@@ -5,6 +5,9 @@ import type { CompanionRoomState } from "./companionTypes";
 import { defaultCompanionRoom, DEFAULT_COMPANION_PORT } from "./companionTypes";
 import { emitRemoteCompanionSpeakingEvent } from "../audio/remoteCompanionProvider";
 import { bindRemoteCompanionUser, unbindRemoteCompanionUser } from "../audio/audioBindingStore";
+import { setParticipantSpeaking } from "../room/roomStore";
+import { initCompanionHostSync } from "./companionHostSync";
+
 
 const STORAGE_KEY = "nokotuber:companionRoom:v1";
 
@@ -70,6 +73,10 @@ export async function stopCompanionServer(): Promise<void> {
   companionRoom.update((s) => ({ ...s, serverRunning: false }));
 }
 
+export async function openCompanionPerformanceWindow(): Promise<void> {
+  if (isTauri()) { try { await invoke("open_companion_performance_window"); } catch (e) { console.error(e); } }
+}
+
 export function endCompanionRoom(): void {
   stopCompanionServer();
   get(companionRoom).participants.forEach((p) => { if (p.boundParticipantId) unbindRemoteCompanionUser(p.boundParticipantId); });
@@ -103,14 +110,25 @@ export function setRemoteParticipantSpeaking(id: string, isSpeaking: boolean, vo
   emitRemoteCompanionSpeakingEvent({ remoteUserId: id, displayName: name, isSpeaking, volume });
 }
 export function bindRemoteToParticipant(remoteId: string, participantId: string): void {
+  const before = get(companionRoom);
+  const prev = before.participants.find((p) => p.id === remoteId)?.boundParticipantId;
+
+  // Se este remoto estava vinculado a OUTRA Pessoa, limpa o vínculo antigo e zera a fala dela
+  if (prev && prev !== participantId) {
+    unbindRemoteCompanionUser(prev);
+    setParticipantSpeaking(prev, false);
+  }
+
   let name = remoteId;
   companionRoom.update((r) => ({ ...r, participants: r.participants.map((p) => {
     if (p.id === remoteId) { name = p.displayName; return { ...p, boundParticipantId: participantId }; }
     if (p.boundParticipantId === participantId) return { ...p, boundParticipantId: undefined };
     return p;
   }) }));
+
   bindRemoteCompanionUser(participantId, remoteId, name);
 }
+
 export function unbindRemote(remoteId: string): void {
   companionRoom.update((r) => ({ ...r, participants: r.participants.map((p) => {
     if (p.id !== remoteId) return p;
@@ -126,4 +144,6 @@ if (!isPerfWindow() && isTauri()) {
   listen<any>("companion://join", (ev) => { const p = ev.payload; if (p?.id) addRemoteParticipant(p.id, p.name ?? "Participante"); });
   listen<any>("companion://speaking", (ev) => { const p = ev.payload; if (p?.id) setRemoteParticipantSpeaking(p.id, !!p.isSpeaking, typeof p.volume === "number" ? p.volume : undefined); });
   listen<any>("companion://leave", (ev) => { const p = ev.payload; if (p?.id) markRemoteDisconnected(p.id); });
+  // Host → Companions: envia a cena da sala (snapshot) quando alguém conecta / a sala muda.
+  initCompanionHostSync();
 }

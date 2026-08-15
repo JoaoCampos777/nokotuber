@@ -127,6 +127,29 @@ fn open_companion_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Mostra a "Janela do Companion" (companion-stage). A janela é definida
+/// estaticamente em tauri.conf.json (criada na inicialização, oculta), pois
+/// criar a WebView em runtime dentro de um comando não carrega a página.
+/// Aqui só a tornamos visível e focada.
+#[tauri::command]
+fn open_companion_performance_window(app: AppHandle) -> Result<(), String> {
+    let win = app
+        .get_webview_window("companion-stage")
+        .ok_or_else(|| "Janela do Companion não encontrada".to_string())?;
+    win.show().map_err(|e| format!("Falha ao mostrar a Janela do Companion: {e}"))?;
+    let _ = win.set_focus();
+    Ok(())
+}
+
+/// Oculta a Janela do Companion (chamado pelo Escape dentro dela).
+#[tauri::command]
+fn close_companion_performance_window(app: AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("companion-stage") {
+        win.hide().map_err(|e| format!("Falha ao ocultar: {e}"))?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -152,12 +175,18 @@ pub fn run() {
             discord_rpc::discord_rpc_exchange_secret,
             companion_server::companion_server_start,
             companion_server::companion_server_stop,
+            companion_server::companion_server_broadcast,
             open_companion_window,
+            open_companion_performance_window,
+            close_companion_performance_window,
         ])
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                if window.label() == "main" {
-                    window.app_handle().exit(0);
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                match window.label() {
+                    "main" => window.app_handle().exit(0),
+                    // A Janela do Companion é reutilizável: ocultar em vez de destruir.
+                    "companion-stage" => { api.prevent_close(); let _ = window.hide(); }
+                    _ => {}
                 }
             }
         })

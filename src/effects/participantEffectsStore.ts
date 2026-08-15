@@ -1,6 +1,7 @@
 import { writable, get } from "svelte/store";
-import type { ParticipantEffects, ParticipantEffectKey, EffectPreset } from "./participantEffects";
-import { defaultParticipantEffects } from "./participantEffects";
+import type { ParticipantEffects, ParticipantEffectKey, EffectPreset, ParticipantVoiceReaction } from "./participantEffects";
+import { defaultParticipantEffects, normalizeParticipantEffects } from "./participantEffects";
+import type { VoiceReactionEffectType } from "../audio/voiceReactionTypes";
 import { room } from "../room/roomStore";
 
 const KEY = "nokotuber:participantEffects:v1";
@@ -20,7 +21,7 @@ function load(): ParticipantEffects[] {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) return arr;
+      if (Array.isArray(arr)) return arr.map((e) => normalizeParticipantEffects(e));
     }
   } catch {}
   return [];
@@ -71,13 +72,36 @@ export function updatePreset(participantId: string, key: ParticipantEffectKey, p
       : e));
 }
 
+// ─── Reação de voz por participante ───
+export function setVoiceReactionEnabled(participantId: string, enabled: boolean): void {
+  participantEffects.update((list) =>
+    list.map((e) => e.participantId === participantId
+      ? { ...e, voiceReaction: { ...e.voiceReaction, enabled } } : e));
+}
+
+export function toggleVoiceReactionEffect(participantId: string, effect: VoiceReactionEffectType): void {
+  participantEffects.update((list) =>
+    list.map((e) => {
+      if (e.participantId !== participantId) return e;
+      const has = e.voiceReaction.effects.includes(effect);
+      const effects = has ? e.voiceReaction.effects.filter((x) => x !== effect) : [...e.voiceReaction.effects, effect];
+      return { ...e, voiceReaction: { ...e.voiceReaction, effects } };
+    }));
+}
+
+export function updateVoiceReaction(participantId: string, patch: Partial<ParticipantVoiceReaction>): void {
+  participantEffects.update((list) =>
+    list.map((e) => e.participantId === participantId
+      ? { ...e, voiceReaction: { ...e.voiceReaction, ...patch } } : e));
+}
+
 /** Copia presets+enabled de um participante para outro (mantém o participantId do destino). */
 export function copyEffectsTo(fromId: string, toId: string): void {
   participantEffects.update((list) => {
     const src = list.find((e) => e.participantId === fromId);
     if (!src) return list;
     return list.map((e) => e.participantId === toId
-      ? { ...e, enabled: src.enabled, presets: JSON.parse(JSON.stringify(src.presets)) }
+      ? { ...e, enabled: src.enabled, presets: JSON.parse(JSON.stringify(src.presets)), voiceReaction: JSON.parse(JSON.stringify(src.voiceReaction)) }
       : e);
   });
 }
@@ -89,5 +113,5 @@ export function resetParticipantEffects(participantId: string): void {
 
 /** Aplica os efeitos por participante vindos de um projeto carregado (.noko). */
 export function applyParticipantEffects(raw: any): void {
-  participantEffects.set(Array.isArray(raw) ? raw : []);
+  participantEffects.set(Array.isArray(raw) ? raw.map((e) => normalizeParticipantEffects(e)) : []);
 }

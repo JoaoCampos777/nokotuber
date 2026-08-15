@@ -5,7 +5,7 @@
 
 export const APP_NAME    = "Nokotuber";
 export const APP_TAGLINE = "Ferramenta de PNGTuber para streamers";
-export const APP_VERSION = "0.2.0";
+export const APP_VERSION = "0.2.2";
 
 export const APP_CREATOR = {
   name: "Campos",

@@ -4,6 +4,16 @@
   import EditorView from "../ui/EditorView.svelte";
   import PerformanceView from "../ui/PerformanceView.svelte";
   import CompanionClientView from "../ui/CompanionClientView.svelte";
+  import CompanionPerformanceView from "../ui/CompanionPerformanceView.svelte";
+
+  function detectCompanionPerformance(): boolean {
+    try {
+      if ((location.href || "").includes("view=companion-stage")) return true;
+      const label = (window as any).__TAURI_INTERNALS__?.metadata?.currentWindow?.label;
+      return label === "companion-stage";
+    } catch { return false; }
+  }
+  const isCompanionPerformance = detectCompanionPerformance();
 
 
   function detectCompanion(): boolean {
@@ -29,9 +39,12 @@
   }
 
   const isPerformance = detectPerformance();
+
 </script>
 
-{#if isCompanion || $companionMode}
+{#if isCompanionPerformance}
+  <CompanionPerformanceView />
+{:else if isCompanion || $companionMode}
   <CompanionClientView />
 {:else if isPerformance}
   <PerformanceView />

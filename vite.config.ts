@@ -36,6 +36,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: "index.html",
+        companionStage: "companion-stage.html",
       },
     },
   },

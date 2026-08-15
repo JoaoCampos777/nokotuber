@@ -2,9 +2,10 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Permissões padrão do Nokotuber",
-  "windows": ["main", "performance"],
+  "windows": ["main", "performance", "companion", "companion-stage"],
   "permissions": [
     "core:default",
+    "core:window:allow-close",
     "opener:default",
     "dialog:allow-open",
     "dialog:allow-save"

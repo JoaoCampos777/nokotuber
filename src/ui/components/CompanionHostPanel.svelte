@@ -7,6 +7,7 @@
     startCompanionServer, stopCompanionServer, setHostPort, setVpnIp,
   } from "../../companion/companionStore";
   import { enterCompanionMode, openTutorial, tutorialDismissed } from "../../companion/companionUi";
+  import { broadcastRoomSnapshot } from "../../companion/companionHostSync";
 
   let port = $companionRoom.hostPort || 8787;
   let vpn = $companionRoom.vpnIp || "";
@@ -16,6 +17,7 @@
   function onBindChange(remoteId: string, e: Event) { const v = (e.target as HTMLSelectElement).value; if (v) bindRemoteToParticipant(remoteId, v); else unbindRemote(remoteId); }
   function copyAddr() { navigator.clipboard?.writeText(connectAddr).catch(() => {}); }
   function createRoom() { createCompanionRoom(); if (!tutorialDismissed()) openTutorial(); }
+  function confirmEnd() { if (window.confirm("Encerrar a sala? Isso desconecta todos os Companions e para o servidor.")) endCompanionRoom(); }
 </script>
 
 <div class="ck">
@@ -37,7 +39,7 @@
       <label class="ck-mini">IP da VPN (Radmin/Hamachi), se usar
         <input class="ck-in" placeholder="Ex: 26.123.45.67" bind:value={vpn} on:input={() => setVpnIp(vpn)} />
       </label>
-      <div><b>Endereço p/ o Companion:</b> <code>{connectAddr}</code></div>
+      <div data-tour="room-address"><b>Endereço p/ o Companion:</b> <code>{connectAddr}</code></div>
       <p class="ck-help-text">⚠ Este endereço <b>não abre no navegador</b>. Ele vai no campo "Endereço do Host" dentro do modo Companion. Envie-o para quem vai entrar; em casas diferentes, use o IP do Radmin/Hamachi.</p>
     </div>
 
@@ -50,9 +52,10 @@
       <button class="chip grow" on:click={copyAddr}>Copiar endereço</button>
       <button class="chip grow" on:click={enterCompanionMode}>Modo Companion</button>
     </div>
-    <button class="chip full" on:click={endCompanionRoom}>Encerrar sala</button>
+    <button class="chip full" on:click={() => broadcastRoomSnapshot(true)}>Atualizar cena nos Companions</button>
+    <button class="chip full danger" on:click={confirmEnd}>Encerrar sala</button>
 
-    <div class="ck-sim">
+    <div class="ck-sim" data-tour="companions">
       <span class="ck-sub">Teste (simular):</span>
       <div class="ck-row">
         <button class="chip grow" on:click={() => addRemoteParticipant("remote_joao", "João (remoto)")}>+ João</button>
@@ -110,5 +113,7 @@
   .chip.grow { flex: 1; min-width: 0; text-align: center; } .chip.full { width: 100%; }
   .chip:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
   .chip.accent { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+  .chip.danger { color: var(--color-danger); border-color: var(--color-danger); background: transparent; }
+  .chip.danger:hover { background: var(--color-danger); color: #fff; }
   .chip.on { color: var(--color-accent); border-color: var(--color-accent-dim); background: var(--color-accent-soft); }
 </style>

@@ -1,6 +1,7 @@
 import { writable } from "svelte/store";
 import type { CompanionClientState } from "./companionTypes";
 import { helloMsg, speakingMsg, heartbeatMsg } from "./companionMessages";
+import { applyRoomSnapshot, applyRoomAsset, applyParticipantSpeaking, applyParticipantReaction } from "./companionStageStore";
 
 const TAG = "[Companion]";
 
@@ -27,6 +28,7 @@ let micStream: MediaStream | null = null;
 let rafId = 0, hbTimer: any = 0;
 let speaking = false, smoothVol = 0, belowSince = 0;
 let _clientId = "", _displayName = "", _roomCode = "", _micDeviceId = "";
+let connectedAt = 0;
 
 function genId(): string { return "remote_" + Math.random().toString(36).slice(2, 9); }
 function setError(msg: string): void { L("ERRO:", msg); companionClient.update((s) => ({ ...s, status: "error", error: msg })); }
@@ -66,16 +68,36 @@ export function connectCompanion(displayName: string, hostUrl: string, roomCode:
     companionClient.update((s) => ({ ...s, status: "connecting", error: undefined }));
   };
   ws.onmessage = (ev) => {
-    L("onmessage (bruto):", ev.data);
+    const raw = typeof ev.data === "string" ? ev.data : "";
+    // Não logar payloads grandes (snapshots trazem imagens em base64).
+    L("onmessage (bruto):", raw.length > 200 ? `${raw.slice(0, 200)}… (${raw.length} bytes)` : raw);
     let m: any;
-    try { m = JSON.parse(typeof ev.data === "string" ? ev.data : ""); }
+    try { m = JSON.parse(raw); }
     catch (e) { L("mensagem não-JSON, ignorando:", String(e)); return; }
     if (m.type === "welcome") {
       L("welcome ✓ → CONECTADO. remoteUserId =", m.remoteUserId);
+      connectedAt = Date.now();
       companionClient.update((s) => ({ ...s, status: "connected", error: undefined }));
       startMicAndVad();
     } else if (m.type === "error") {
       setError(`O Host recusou: ${m.message ?? "(sem mensagem)"}`);
+    } else if (m.type === "room_snapshot") {
+      L("room_snapshot recebido:", `${m.participants?.length ?? 0} participante(s)`, `${raw.length} bytes`);
+      const missing = applyRoomSnapshot(m);
+      if (missing.length && ws?.readyState === WebSocket.OPEN) {
+        L("pedindo assets ausentes:", missing.length);
+        ws.send(JSON.stringify({ type: "request_assets", assetIds: missing }));
+      }
+    } else if (m.type === "room_asset") {
+      L("room_asset recebido:", m.assetId, `${m.byteLength ?? (m.dataUrl?.length ?? 0)} bytes`);
+      applyRoomAsset(m.assetId, m.dataUrl);
+    } else if (m.type === "participant_speaking") {
+      // Aplica IMEDIATAMENTE (sem debounce). Latência só é exata no mesmo PC.
+      if (typeof m.sentAt === "number") L("speaking:", m.isSpeaking ? "on" : "off", `~${Date.now() - m.sentAt}ms`);
+      applyParticipantSpeaking(m.participantId, !!m.isSpeaking);
+    } else if (m.type === "participant_reaction") {
+      if (typeof m.sentAt === "number") L("reaction:", `~${Date.now() - m.sentAt}ms`);
+      applyParticipantReaction(m);
     } else { L("mensagem de tipo não tratado:", m.type); }
   };
   ws.onerror = (ev) => {
@@ -83,9 +105,14 @@ export function connectCompanion(displayName: string, hostUrl: string, roomCode:
     companionClient.update((s) => s.status === "connected" ? s : ({ ...s, status: "error", error: s.error ?? "Erro de conexão. Veja o log abaixo / Console (F12)." }));
   };
   ws.onclose = (ev) => {
-    L("onclose:", { code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
+    const uptime = connectedAt ? `${Math.round((Date.now() - connectedAt) / 1000)}s conectado` : "não chegou a conectar";
+    L("onclose:", { code: ev.code, reason: ev.reason, wasClean: ev.wasClean, uptime });
     clearInterval(hbTimer);
-    companionClient.update((s) => ({ ...s, status: "disconnected", error: s.error ?? `Conexão encerrada (code ${ev.code}${ev.reason ? `, ${ev.reason}` : ""}).` }));
+    connectedAt = 0;
+    const msg = ev.code === 1006
+      ? "Conexão encerrada de forma anormal (1006). Isso normalmente indica que o Host encerrou a conexão, houve erro de rede/VPN, ou o servidor local fechou o socket. Veja o log acima."
+      : `Conexão encerrada (code ${ev.code}${ev.reason ? `, ${ev.reason}` : ""}).`;
+    companionClient.update((s) => ({ ...s, status: "disconnected", error: s.error ?? msg }));
   };
 }
 
@@ -138,5 +165,5 @@ export function disconnectCompanion(): void {
   if (micStream) { micStream.getTracks().forEach((t) => t.stop()); micStream = null; }
   if (audioCtx) { audioCtx.close().catch(() => {}); audioCtx = null; }
   analyser = null; speaking = false; smoothVol = 0; belowSince = 0;
-  companionClient.update((s) => ({ ...s, isSpeaking: false, volume: 0 }));
+  companionClient.update((s) => ({ ...s, status: "disabled", isSpeaking: false, volume: 0, error: undefined }));
 }

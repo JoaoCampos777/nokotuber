@@ -15,10 +15,35 @@ export interface ParticipantEffectPresets {
   highlightWhenSpeaking: EffectPreset;
 }
 
+import type { VoiceReactionEffectType } from "../audio/voiceReactionTypes";
+
+/** Reação de voz por participante (efeitos ricos, disparados ao falar/simular). */
+export interface ParticipantVoiceReaction {
+  enabled: boolean;
+  effects: VoiceReactionEffectType[]; // shake, strongShake, randomMovement, scalePulse, expressionSwap, colorFlash
+  intensity: number;  // 0..100
+  durationMs: number; // quanto dura a reação
+  cooldownMs: number; // intervalo mínimo entre reações automáticas (por fala)
+}
+
+export function defaultParticipantVoiceReaction(): ParticipantVoiceReaction {
+  return { enabled: false, effects: ["strongShake"], intensity: 70, durationMs: 700, cooldownMs: 900 };
+}
+
+/** Reação ativa no momento (runtime), aplicada pelo renderer. */
+export interface ActiveRoomReaction {
+  participantId: string;
+  effects: VoiceReactionEffectType[];
+  intensity: number;  // 0..100
+  startedAt: number;  // performance.now() LOCAL (cada processo usa o seu relógio)
+  durationMs: number;
+}
+
 export interface ParticipantEffects {
   participantId: string;
   enabled: boolean;
   presets: ParticipantEffectPresets;
+  voiceReaction: ParticipantVoiceReaction;
 }
 
 export const PARTICIPANT_EFFECTS_VERSION = "1.0.0";
@@ -39,6 +64,26 @@ export function defaultParticipantEffects(participantId: string): ParticipantEff
       headBob:               { enabled: false, intensity: 4, speed: 0.6 },
       highlightWhenSpeaking: { enabled: false, intensity: 4, speed: 1 },
     },
+    voiceReaction: defaultParticipantVoiceReaction(),
+  };
+}
+
+/** Garante que uma entrada (possivelmente de versão antiga) tenha todos os campos. */
+export function normalizeParticipantEffects(raw: any, participantId?: string): ParticipantEffects {
+  const base = defaultParticipantEffects(participantId ?? raw?.participantId ?? "");
+  if (!raw || typeof raw !== "object") return base;
+  const presets = { ...base.presets };
+  for (const k of PARTICIPANT_EFFECT_KEYS) {
+    if (raw.presets && raw.presets[k]) presets[k] = { ...base.presets[k], ...raw.presets[k] };
+  }
+  const vr = raw.voiceReaction && typeof raw.voiceReaction === "object"
+    ? { ...base.voiceReaction, ...raw.voiceReaction, effects: Array.isArray(raw.voiceReaction.effects) ? raw.voiceReaction.effects : base.voiceReaction.effects }
+    : base.voiceReaction;
+  return {
+    participantId: raw.participantId ?? base.participantId,
+    enabled: raw.enabled !== undefined ? !!raw.enabled : base.enabled,
+    presets,
+    voiceReaction: vr,
   };
 }
 

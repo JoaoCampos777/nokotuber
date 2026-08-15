@@ -1,4 +1,4 @@
-import type { ParticipantEffects } from "./participantEffects";
+import type { ParticipantEffects, ActiveRoomReaction } from "./participantEffects";
 
 export interface EffectTransform {
   dx: number;          // px lógicos (espaço 1920x1080)
@@ -73,5 +73,48 @@ export function resolveParticipantEffects(
     }
   }
 
+  return out;
+}
+
+/**
+ * Resolve uma REAÇÃO de voz ativa (efeito transitório disparado ao falar/simular)
+ * em deltas de transform. Envelope sobe e desce ao longo de durationMs.
+ * Determinístico por (reação + tempo + seed); por participante.
+ * Obs.: "expressionSwap" não tem efeito visual na sala (avatares só têm imagens base).
+ */
+export function resolveReactionTransform(
+  reaction: ActiveRoomReaction | undefined,
+  nowMs: number,
+  seed: number,
+): EffectTransform {
+  const out = identity();
+  if (!reaction || !reaction.effects?.length) return out;
+  const elapsed = nowMs - reaction.startedAt;
+  if (elapsed < 0 || elapsed > reaction.durationMs) return out;
+
+  const env = Math.sin(Math.PI * (elapsed / reaction.durationMs)); // 0 → 1 → 0
+  const I = Math.max(0, Math.min(1, reaction.intensity / 100));
+  const t = nowMs / 1000;
+  const fx = reaction.effects;
+
+  if (fx.includes("shake")) {
+    out.dx += Math.sin(t * TAU * 11 + seed) * 9 * I * env;
+    out.dy += Math.cos(t * TAU * 13 + seed) * 6 * I * env;
+  }
+  if (fx.includes("strongShake")) {
+    out.dx += Math.sin(t * TAU * 17 + seed * 1.7) * 24 * I * env;
+    out.dy += Math.cos(t * TAU * 19 + seed) * 16 * I * env;
+    out.rotationAdd += Math.sin(t * TAU * 9 + seed) * 4 * I * env;
+  }
+  if (fx.includes("randomMovement")) {
+    out.dx += Math.sin(t * TAU * 6.3 + seed * 1.3) * 20 * I * env;
+    out.dy += Math.cos(t * TAU * 4.7 + seed * 0.7) * 20 * I * env;
+  }
+  if (fx.includes("scalePulse")) {
+    out.scaleMul *= 1 + 0.3 * I * env;
+  }
+  if (fx.includes("colorFlash")) {
+    out.highlight = Math.max(out.highlight, I * env);
+  }
   return out;
 }

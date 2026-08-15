@@ -75,6 +75,33 @@ export async function openProjectFile(): Promise<{ path: string; content: string
 }
 
 /**
+ * Salva um texto qualquer num arquivo escolhido pelo usuário (genérico).
+ * Reaproveita o comando save_project_file (que só grava texto num caminho).
+ * Retorna o caminho salvo, ou null se cancelado.
+ */
+export async function saveTextFileAs(
+  content: string, defaultName: string, filterName: string, extensions: string[],
+): Promise<string | null> {
+  const path = await save({ filters: [{ name: filterName, extensions }], defaultPath: defaultName });
+  if (!path) return null;
+  await invoke("save_project_file", { path, content });
+  return path;
+}
+
+/**
+ * Abre um arquivo de texto qualquer (genérico) e retorna o conteúdo.
+ * Reaproveita o comando open_project_file.
+ */
+export async function openTextFile(
+  filterName: string, extensions: string[],
+): Promise<{ path: string; content: string } | null> {
+  const selected = await open({ multiple: false, filters: [{ name: filterName, extensions }] });
+  if (!selected || typeof selected !== "string") return null;
+  const content = await invoke<string>("open_project_file", { path: selected });
+  return { path: selected, content };
+}
+
+/**
  * Pede ao usuário um caminho e exporta o projeto como ZIP.
  */
 export async function exportProjectZip(projectJson: string, defaultName: string): Promise<string | null> {

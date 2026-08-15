@@ -8,6 +8,15 @@
   import VoiceReactionSettings from "./components/VoiceReactionSettings.svelte";
   import MicrophoneSettings from "./components/MicrophoneSettings.svelte";
   import RoomStage from "./components/RoomStage.svelte";
+  import SimpleAdvancedToggle from "./components/SimpleAdvancedToggle.svelte";
+  import OnboardingTour from "./components/OnboardingTour.svelte";
+  import SectionAccordion from "./components/SectionAccordion.svelte";
+  import CharacterLibraryPanel from "./components/CharacterLibraryPanel.svelte";
+  import { characters, applyCharacter, getCharacter } from "../character/characterLibraryStore";
+  import { resolveStartupCharacterId } from "../character/startupPrefsStore";
+  import { uiPrefs } from "./uiPrefsStore";
+  import { openTourMenu, startTour, tourSeen } from "./tourStore";
+  import { TOUR_FIRST } from "./tours";
   import { room, toggleRoomMode } from "../room/roomStore";
   import RoomPanel from "./components/RoomPanel.svelte";
   import { startSharedMicProvider } from "../audio/sharedMicrophoneProvider";
@@ -69,10 +78,23 @@
   };
 
   onMount(async () => {
+    // Carregamento automático de personagem (preferência de início).
+    // markDirty=false para não marcar "não salvo" ao abrir o app.
+    try {
+      const startId = resolveStartupCharacterId();
+      if (startId) {
+        if (getCharacter(startId)) applyCharacter(startId, { markDirty: false });
+        else showToast("O personagem padrão não foi encontrado. Abrindo normalmente.", "info");
+      }
+    } catch {}
+
     if (inTauri) appVersion = await getAppVersion();
     stopController = startAvatarController();
     stopHotkeys = initHotkeyManager();
     stopMicProvider = startSharedMicProvider();
+
+    // Tour de boas-vindas no primeiro uso (reabra depois pelo botão Tutorial).
+    if (!tourSeen()) setTimeout(() => startTour(TOUR_FIRST), 700);
 
     if (inTauri) {
       // Performance pediu o estado inicial → envia config + imagens + imagem atual
@@ -291,12 +313,14 @@
       <button class="btn btn-ghost" on:click={handleOpen}>Abrir</button>
       <button class="btn btn-ghost" disabled={saveDisabled} on:click={handleSave}>Salvar</button>
       <button class="btn btn-ghost" on:click={handleExport}>Exportar</button>
+      <button class="btn btn-ghost" on:click={openTourMenu} title="Abrir o tutorial">❓ Tutorial</button>
       <button class="btn btn-ghost btn-icon-only" on:click={() => showAbout = true} title="Sobre">ℹ</button>
-      <button class="btn btn-ghost" class:btn-active={$room.enabled} on:click={handleRoomToggle} title="Alternar modo sala">
+      <button class="btn btn-ghost" class:btn-active={$room.enabled} on:click={handleRoomToggle} title="Alternar modo sala" data-tour="mode-toggle">
         {$room.enabled ? "👥 Sala: ON" : "👤 Sala: OFF"}
       </button>
+      <span data-tour="simple-advanced"><SimpleAdvancedToggle /></span>
       <div class="topbar-divider" />
-      <button class="btn" class:btn-accent={!perfOpen} class:btn-stop={perfOpen} on:click={handlePerformanceToggle} disabled={openingPerf}>
+      <button class="btn" class:btn-accent={!perfOpen} class:btn-stop={perfOpen} on:click={handlePerformanceToggle} disabled={openingPerf} data-tour="perf-window">
         {#if openingPerf}…{:else if perfOpen}■ Fechar Janela{:else}▶ Modo Janela{/if}
       </button>
     </nav>
@@ -316,13 +340,18 @@
       </div>
 
       {#if leftTab === "avatar"}
+        <div class="char-lib" data-tour="characters">
+          <SectionAccordion title="Meus Personagens" storageKey="avatar-chars" open={false} badge={String($characters.length)}>
+            <CharacterLibraryPanel toast={showToast} />
+          </SectionAccordion>
+        </div>
         <div class="section-header">
           <span>IMAGENS</span>
           <button class="section-toggle" class:active={$project.useDefaultAvatar} on:click={toggleDefaultAvatar}>
             {$project.useDefaultAvatar ? "● padrão" : "○ padrão"}
           </button>
         </div>
-        <div class="slot-list">
+        <div class="slot-list" data-tour="avatar-images">
           {#each slots as slot}
             {@const info = slotDefs[slot]}
             {@const userImg = $project.images[slot]}
@@ -388,17 +417,21 @@
           {stateInfo[$avatarState]?.label ?? "—"}
         </div>
       </div>
-      <div class="section-header section-header-top">EFEITOS</div>
-      <EffectsPanel />
+      {#if $uiPrefs.mode === "advanced"}
+        <div class="section-header section-header-top">EFEITOS</div>
+        <EffectsPanel />
+      {/if}
       <div class="section-header section-header-top">ÁUDIO</div>
       <div class="vr-wrap"><MicrophoneSettings /></div>
-      <div class="section-header section-header-top">REAÇÃO DE VOZ</div>
-      <div class="vr-wrap"><VoiceReactionSettings /></div>
+      {#if $uiPrefs.mode === "advanced"}
+        <div class="section-header section-header-top">REAÇÃO DE VOZ</div>
+        <div class="vr-wrap"><VoiceReactionSettings /></div>
+      {/if}
     </aside>
 
   </div>
 
-  <footer class="editor-footer">
+  <footer class="editor-footer" data-tour="mic-footer">
     <button class="btn btn-sm" class:btn-active={$isAudioActive} on:click={handleToggleAudio}>
       {$isAudioActive ? "🎙 Parar mic" : "🎙 Ligar mic"}
     </button>
@@ -421,6 +454,7 @@
 
 {#if toastMsg}<div class="toast toast-{toastType}">{toastMsg}</div>{/if}
 {#if showAbout}<AboutModal onClose={() => showAbout = false} />{/if}
+<OnboardingTour />
 
 <style>
   .editor-root { display: flex; flex-direction: column; width: 100vw; height: 100vh; background: var(--color-bg-primary); color: var(--color-text-primary); overflow: hidden; }
@@ -447,10 +481,22 @@
   .btn-sm:hover { background: var(--color-accent-soft); color: var(--color-text-primary); }
   .btn-active { background: var(--color-accent-soft) !important; color: var(--color-accent-hover) !important; }
 
-  .editor-body { display: flex; flex: 1; overflow: hidden; }
-  .panel { background: var(--color-bg-panel); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+  .editor-body { display: flex; flex: 1; overflow: hidden; min-width: 0; }
+  .panel { background: var(--color-bg-panel); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; overflow-x: hidden; }
   .panel-left  { width: 270px; border-right: 1px solid var(--color-border); }
   .panel-right { width: 250px; border-left:  1px solid var(--color-border); }
+
+  /* Responsividade: em janelas mais estreitas, painéis encolhem (sem barra horizontal). */
+  @media (max-width: 1120px) {
+    .panel-left  { width: 240px; }
+    .panel-right { width: 220px; }
+  }
+  @media (max-width: 1000px) {
+    .panel-left  { width: 220px; }
+    .panel-right { width: 206px; }
+    .topbar { padding: 0 10px; }
+    .topbar-actions .btn { padding: 6px 9px; font-size: 12px; }
+  }
 
   .tabs { display: flex; border-bottom: 1px solid var(--color-border); flex-shrink: 0; }
   .tab { flex: 1; background: transparent; border: none; padding: 10px 6px; font-size: 11px; font-weight: 600; color: var(--color-text-dim); cursor: pointer; font-family: inherit; border-bottom: 2px solid transparent; white-space: nowrap; }
@@ -488,6 +534,7 @@
 
   .expr-wrap { padding: 10px; }
   .vr-wrap { padding: 8px 12px 14px; }
+  .char-lib { padding: 6px 6px 0; }
 
   .editor-center { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--color-bg-primary); overflow: hidden; }
 

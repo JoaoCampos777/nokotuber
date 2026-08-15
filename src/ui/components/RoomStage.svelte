@@ -5,6 +5,7 @@
   import { room, visibleParticipants } from "../../room/roomStore";
   import { project } from "../../project/projectStore";
   import { participantEffects } from "../../effects/participantEffectsStore";
+  import { activeRoomReactions } from "../../room/roomReactions";
 
   export let transparent: boolean = false;
   export let width:  number = 960;
@@ -24,6 +25,7 @@
       participants: get(visibleParticipants),
       avatars,
       effects,
+      reactions: get(activeRoomReactions),
       background: { mode: view.backgroundMode ?? "transparent", color: view.backgroundColor ?? "#00FF00" },
     };
 

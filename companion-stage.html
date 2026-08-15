@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nokotuber Companion — Janela</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #1c1818; overflow: hidden; }
+      #stage-canvas { display: block; width: 100vw; height: 100vh; }
+      #ph {
+        position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+        pointer-events: none; color: #b8a8a4; font-family: system-ui, sans-serif;
+        text-align: center; font-size: 16px; line-height: 1.5;
+      }
+      #ph small { color: #7a6664; font-size: 13px; }
+      #ph.hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage-canvas"></canvas>
+    <div id="ph">Aguardando cena do Host…<br /><small>Conecte ao Host; use "Reenviar cena" se nada aparecer.</small></div>
+    <script type="module" src="/src/companion-stage.ts"></script>
+  </body>
+</html>

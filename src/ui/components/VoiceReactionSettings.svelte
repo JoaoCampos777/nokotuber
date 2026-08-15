@@ -41,11 +41,11 @@
     <span><i class="sw react"></i> Reação {$voiceReactionRule.triggerThreshold}</span>
   </div>
 
-  <SliderControl label="Limiar de fala" value={$audioThreshold} min={0} max={100} step={1}
+  <SliderControl label="Quando começa a falar" value={$audioThreshold} min={0} max={100} step={1}
     tooltip="A partir deste volume o avatar começa a falar."
     onChange={(v) => audioThreshold.set(v)} />
 
-  <SliderControl label="Limiar de reação" value={$voiceReactionRule.triggerThreshold} min={0} max={100} step={1}
+  <SliderControl label="Quando ativa reação" value={$voiceReactionRule.triggerThreshold} min={0} max={100} step={1}
     tooltip="Volume mais alto que dispara a reação."
     onChange={(v) => updateVoiceReactionRule({ triggerThreshold: v })} />
 
@@ -71,7 +71,7 @@
   <SliderControl label="Cooldown" suffix="ms" value={$voiceReactionRule.cooldownMs} min={0} max={5000} step={50}
     onChange={(v) => updateVoiceReactionRule({ cooldownMs: v })} />
 
-  <button class="scare-btn" on:click={simulateReaction}>▶ Simular reação</button>
+  <button class="scare-btn" on:click={simulateReaction}>▶ Testar reação</button>
 
   <p class="hint">
     O <b>limiar de fala</b> controla quando o avatar começa a falar.

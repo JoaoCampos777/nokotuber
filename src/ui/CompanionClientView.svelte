@@ -1,7 +1,35 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { companionClient, companionLog, vadSettings, listMics, connectCompanion, disconnectCompanion, sendTestHello } from "../companion/companionClient";
   import { exitCompanionMode, openTutorial, companionMode } from "../companion/companionUi";
+  import { emit } from "@tauri-apps/api/event";
+  import { get } from "svelte/store";
+  import { startAvatarController } from "../avatar/avatarController";
+  import { isTalking } from "../audio/audioStore";
+  import { openCompanionPerformanceWindow } from "../companion/companionStore";
+  import { companionStageSnapshot, initCompanionStageBridge } from "../companion/companionStageStore";
+
+  const isDesktop = typeof (window as any).__TAURI_INTERNALS__ !== "undefined";
+  let stopAvatar: (() => void) | null = null;
+  let lastSpeak = false;
+
+  onMount(async () => {
+    // Mantém o avatar local rodando (usado para enviar fala ao Host).
+    stopAvatar = startAvatarController();
+    // Janela do Companion agora mostra a CENA do Host (snapshot), não o avatar local.
+    if (isDesktop) await initCompanionStageBridge();
+  });
+
+  // fala do Companion → estado do avatar local (continua enviando fala ao Host)
+  $: if ($companionClient.isSpeaking !== lastSpeak) { lastSpeak = $companionClient.isSpeaking; isTalking.set(lastSpeak); }
+
+  async function openWindow() {
+    console.log("[companion] opening companion stage");
+    await openCompanionPerformanceWindow();
+    // A janela é persistente; reenvia o snapshot atual (se já houver) assim que ela aparece.
+    const snap = get(companionStageSnapshot);
+    if (snap) emit("companion-stage:snapshot", snap).catch(() => {});
+  }
 
   const params = new URLSearchParams(location.search);
   let name = "";
@@ -12,7 +40,8 @@
 
   async function refreshMics() { mics = await listMics(); if (!deviceId && mics[0]) deviceId = mics[0].deviceId; }
   async function connect() { await connectCompanion(name.trim() || "Participante", hostUrl.trim(), roomCode.trim().toUpperCase(), deviceId); }
-  onDestroy(() => disconnectCompanion());
+  onDestroy(() => { disconnectCompanion(); stopAvatar?.(); isTalking.set(false); });
+
 </script>
 
 <div class="cc">
@@ -49,13 +78,14 @@
 
   {#if $companionClient.status === "connected"}
     <button class="btn danger big" on:click={disconnectCompanion}>Desconectar</button>
+  {:else if $companionClient.status === "connecting"}
+    <button class="btn big" disabled>Conectando…</button>
   {:else}
     <button class="btn accent big" on:click={connect}>Conectar</button>
   {/if}
-  <p class="hint">Acompanhe abaixo para ver os logs detalhados da conexão.</p>{#if $companionClient.status === "connected"}
-    <button class="btn danger big" on:click={disconnectCompanion}>Desconectar</button>
-  {:else}
-   <!-- <button class="btn accent big" on:click={connect}>Conectar</button>-->
+
+  {#if isDesktop}
+    <button class="btn" on:click={openWindow}>Abrir Modo Janela</button>
   {/if}
 
   <details class="logbox" open>
@@ -89,4 +119,5 @@
   .btn { padding: 8px 10px; border-radius: 8px; border: 1px solid #3a3536; background: transparent; color: inherit; cursor: pointer; font-size: 13px; font-family: inherit; }
   .btn.big { width: 100%; padding: 11px; font-size: 14px; }
   .btn.accent { background: #a21837; border-color: #a21837; color: #fff; } .btn.danger { border-color: #e8a94a; color: #e8a94a; }
+  .btn:disabled { opacity: .55; cursor: default; }
 </style>

@@ -1,13 +1,14 @@
 import { ROOM_CANVAS } from "../room/roomTypes";
 import type { RoomParticipant, RoomAvatar } from "../room/roomTypes";
 import type { ExpressionImages } from "../project/expressionTypes";
-import type { ParticipantEffects } from "../effects/participantEffects";
-import { resolveParticipantEffects, participantSeed } from "../effects/participantEffectResolver";
+import type { ParticipantEffects, ActiveRoomReaction } from "../effects/participantEffects";
+import { resolveParticipantEffects, resolveReactionTransform, participantSeed } from "../effects/participantEffectResolver";
 
 export interface RoomFrameInput {
   participants: RoomParticipant[];                 // visíveis, ordenados por zIndex
   avatars: Record<string, RoomAvatar>;             // por id
   effects: Record<string, ParticipantEffects>;     // efeitos por participantId
+  reactions?: Record<string, ActiveRoomReaction>;  // reações de voz ativas por participantId
   background: { mode: "transparent" | "color" | "chroma" | string; color: string };
 }
 
@@ -100,17 +101,25 @@ export class RoomRenderer2D {
       const url = avatar ? pickImage(avatar.images, talking, blinking) : null;
       const img = this.getImage(url);
 
-      const fx = resolveParticipantEffects(s.effects?.[p.id], talking, now, participantSeed(p.id));
+      const seed = participantSeed(p.id);
+      const fx = resolveParticipantEffects(s.effects?.[p.id], talking, now, seed);
+      const rx = resolveReactionTransform(s.reactions?.[p.id], now, seed);
+      // Combina efeitos contínuos (fx) + reação de voz transitória (rx).
+      const dx = fx.dx + rx.dx;
+      const dy = fx.dy + rx.dy;
+      const rotAdd = fx.rotationAdd + rx.rotationAdd;
+      const scaleMul = fx.scaleMul * rx.scaleMul;
+      const highlight = Math.max(fx.highlight, rx.highlight);
 
       ctx.setTransform(sc, 0, 0, sc, ox, oy);
-      ctx.translate(p.position.x + fx.dx, p.position.y + fx.dy);
-      const rot = p.rotation + fx.rotationAdd;
+      ctx.translate(p.position.x + dx, p.position.y + dy);
+      const rot = p.rotation + rotAdd;
       if (rot) ctx.rotate((rot * Math.PI) / 180);
-      ctx.scale((p.mirrorX ? -1 : 1) * fx.scaleMul, fx.scaleMul);
+      ctx.scale((p.mirrorX ? -1 : 1) * scaleMul, scaleMul);
       ctx.globalAlpha = Math.max(0, Math.min(1, p.opacity));
-      if (fx.highlight > 0) {
-        ctx.shadowColor = `rgba(255,210,140,${0.7 * fx.highlight})`;
-        ctx.shadowBlur = 45 * fx.highlight;
+      if (highlight > 0) {
+        ctx.shadowColor = `rgba(255,210,140,${0.7 * highlight})`;
+        ctx.shadowBlur = 45 * highlight;
       }
 
 
