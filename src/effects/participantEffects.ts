@@ -24,10 +24,11 @@ export interface ParticipantVoiceReaction {
   intensity: number;  // 0..100
   durationMs: number; // quanto dura a reação
   cooldownMs: number; // intervalo mínimo entre reações automáticas (por fala)
+  shoutThreshold: number; // 0..100 — volume p/ considerar "grito" (troca p/ shoutExpression)
 }
 
 export function defaultParticipantVoiceReaction(): ParticipantVoiceReaction {
-  return { enabled: false, effects: ["strongShake"], intensity: 70, durationMs: 700, cooldownMs: 900 };
+  return { enabled: false, effects: ["strongShake"], intensity: 70, durationMs: 700, cooldownMs: 900, shoutThreshold: 70 };
 }
 
 /** Reação ativa no momento (runtime), aplicada pelo renderer. */
@@ -37,6 +38,7 @@ export interface ActiveRoomReaction {
   intensity: number;  // 0..100
   startedAt: number;  // performance.now() LOCAL (cada processo usa o seu relógio)
   durationMs: number;
+  expressionId?: string | null; // troca a face do avatar durante a reação (grito)
 }
 
 export interface ParticipantEffects {

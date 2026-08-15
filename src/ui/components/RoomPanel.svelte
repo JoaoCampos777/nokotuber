@@ -14,6 +14,7 @@
   import { importImageFile } from "../../core/desktop";
   import { setManualSpeaking } from "../../audio/manualSpeakingProvider";
   import ParticipantEffectsControls from "./ParticipantEffectsControls.svelte";
+  import RoomExpressionsControls from "./RoomExpressionsControls.svelte";
   import CompanionHostPanel from "./CompanionHostPanel.svelte";
   import DiscordBindControls from "./DiscordBindControls.svelte";
   import { audioRouting, setParticipantSource, setMicMode, setMicTarget } from "../../audio/audioBindingStore";
@@ -55,6 +56,8 @@
 
   let fxOpen: Record<string, boolean> = {};
   function toggleFx(id: string) { fxOpen = { ...fxOpen, [id]: !fxOpen[id] }; }
+  let exOpen: Record<string, boolean> = {};
+  function toggleEx(id: string) { exOpen = { ...exOpen, [id]: !exOpen[id] }; }
   function othersOf(id: string) {
     return $room.participants.filter((x) => x.id !== id).map((x) => ({ value: x.id, label: x.name }));
   }
@@ -178,6 +181,12 @@
                 </button>
                 {#if fxOpen[p.id]}
                   <ParticipantEffectsControls participantId={p.id} others={othersOf(p.id)} />
+                {/if}
+                <button class="fx-toggle" on:click={() => toggleEx(p.id)}>
+                  {exOpen[p.id] ? "▼" : "▶"} Expressões (faces) e grito
+                </button>
+                {#if exOpen[p.id]}
+                  <RoomExpressionsControls participantId={p.id} avatarId={p.avatarId} />
                 {/if}
               {/if}
             </div>

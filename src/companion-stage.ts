@@ -87,7 +87,12 @@ window.addEventListener("keydown", async (e) => {
     });
     await listen("companion-stage:reaction", (ev) => {
       const r = (ev.payload as any) ?? {};
-      applyReaction(r.participantId, r.effects ?? [], typeof r.intensity === "number" ? r.intensity : 70, typeof r.durationMs === "number" ? r.durationMs : 700);
+      applyReaction(
+        r.participantId, r.effects ?? [],
+        typeof r.intensity === "number" ? r.intensity : 70,
+        typeof r.durationMs === "number" ? r.durationMs : 700,
+        typeof r.expressionId === "string" ? r.expressionId : null,
+      );
     });
     console.log("[companion-stage] listening");
     // Reanuncia "ready" ao ganhar foco (reabertura), para o Companion reenviar a cena atual.

@@ -1,5 +1,5 @@
 import { writable, get, derived } from "svelte/store";
-import type { RoomSettings, RoomParticipant, RoomAvatar, AudioBindingMode } from "./roomTypes";
+import type { RoomSettings, RoomParticipant, RoomAvatar, RoomExpression, AudioBindingMode } from "./roomTypes";
 import { ROOM_CANVAS, ROOM_VERSION, ROOM_MAX_FUTURE } from "./roomTypes";
 import { emptyExpressionImages } from "../project/expressionTypes";
 import type { ExpressionImageSlot } from "../project/expressionTypes";
@@ -11,7 +11,28 @@ function uid(p: string): string {
 }
 
 function makeAvatar(id: string, name: string): RoomAvatar {
-  return { id, name, images: emptyExpressionImages() };
+  return { id, name, images: emptyExpressionImages(), expressions: [], activeExpressionId: null, shoutExpressionId: null };
+}
+
+/** Normaliza um avatar salvo (tolerante a versões sem expressões). */
+function normalizeAvatar(a: any): RoomAvatar {
+  const expressions: RoomExpression[] = Array.isArray(a?.expressions)
+    ? a.expressions.map((e: any) => ({
+        id: typeof e?.id === "string" ? e.id : uid("exp"),
+        name: typeof e?.name === "string" ? e.name : "Expressão",
+        images: { ...emptyExpressionImages(), ...(e?.images ?? {}) },
+        hotkey: typeof e?.hotkey === "string" ? e.hotkey : null,
+      }))
+    : [];
+  const has = (id: any) => typeof id === "string" && expressions.some((e) => e.id === id);
+  return {
+    id: a?.id ?? uid("avatar"),
+    name: a?.name ?? "Avatar",
+    images: { ...emptyExpressionImages(), ...(a?.images ?? {}) },
+    expressions,
+    activeExpressionId: has(a?.activeExpressionId) ? a.activeExpressionId : null,
+    shoutExpressionId: has(a?.shoutExpressionId) ? a.shoutExpressionId : null,
+  };
 }
 
 function makeParticipant(index: number, avatarId: string, x: number): RoomParticipant {
@@ -57,11 +78,7 @@ function mergeRoom(raw: any): RoomSettings {
     maxParticipants: raw.maxParticipants ?? base.maxParticipants,
     layoutMode: raw.layoutMode === "preset" ? "preset" : "manual",
     avatars: Array.isArray(raw.avatars) && raw.avatars.length
-      ? raw.avatars.map((a: any) => ({
-          id: a.id ?? uid("avatar"),
-          name: a.name ?? "Avatar",
-          images: { ...emptyExpressionImages(), ...(a.images ?? {}) },
-        }))
+      ? raw.avatars.map((a: any) => normalizeAvatar(a))
       : base.avatars,
     participants: Array.isArray(raw.participants) && raw.participants.length
       ? raw.participants.map((p: any, i: number) => ({
@@ -174,6 +191,49 @@ export function clearAvatarImage(avatarId: string, slot: ExpressionImageSlot): v
 
 export function getAvatar(avatarId: string): RoomAvatar | undefined {
   return get(room).avatars.find((a) => a.id === avatarId);
+}
+
+// ─── Expressões por avatar (Fase 2B) ───
+function mapAvatar(avatarId: string, fn: (a: RoomAvatar) => RoomAvatar): void {
+  room.update((r) => ({ ...r, avatars: r.avatars.map((a) => (a.id === avatarId ? fn(a) : a)) }));
+}
+function mapExpression(avatarId: string, expId: string, fn: (e: RoomExpression) => RoomExpression): void {
+  mapAvatar(avatarId, (a) => ({ ...a, expressions: (a.expressions ?? []).map((e) => (e.id === expId ? fn(e) : e)) }));
+}
+
+export function addRoomExpression(avatarId: string, name = "Nova expressão"): string {
+  const id = uid("exp");
+  mapAvatar(avatarId, (a) => ({
+    ...a,
+    expressions: [...(a.expressions ?? []), { id, name, images: emptyExpressionImages(), hotkey: null }],
+  }));
+  return id;
+}
+export function removeRoomExpression(avatarId: string, expId: string): void {
+  mapAvatar(avatarId, (a) => ({
+    ...a,
+    expressions: (a.expressions ?? []).filter((e) => e.id !== expId),
+    activeExpressionId: a.activeExpressionId === expId ? null : a.activeExpressionId,
+    shoutExpressionId: a.shoutExpressionId === expId ? null : a.shoutExpressionId,
+  }));
+}
+export function renameRoomExpression(avatarId: string, expId: string, name: string): void {
+  mapExpression(avatarId, expId, (e) => ({ ...e, name }));
+}
+export function setRoomExpressionImage(avatarId: string, expId: string, slot: ExpressionImageSlot, url: string): void {
+  mapExpression(avatarId, expId, (e) => ({ ...e, images: { ...e.images, [slot]: url } }));
+}
+export function clearRoomExpressionImage(avatarId: string, expId: string, slot: ExpressionImageSlot): void {
+  mapExpression(avatarId, expId, (e) => ({ ...e, images: { ...e.images, [slot]: null } }));
+}
+export function setRoomExpressionHotkey(avatarId: string, expId: string, hotkey: string | null): void {
+  mapExpression(avatarId, expId, (e) => ({ ...e, hotkey }));
+}
+export function setActiveRoomExpression(avatarId: string, expId: string | null): void {
+  mapAvatar(avatarId, (a) => ({ ...a, activeExpressionId: expId }));
+}
+export function setShoutExpression(avatarId: string, expId: string | null): void {
+  mapAvatar(avatarId, (a) => ({ ...a, shoutExpressionId: expId }));
 }
 
 export function resetRoom(): void { room.set(defaultRoom()); }

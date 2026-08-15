@@ -1,5 +1,6 @@
 import { get } from "svelte/store";
 import { expressionState, setActiveExpression } from "../project/expressionStore";
+import { room, setActiveRoomExpression } from "../room/roomStore";
 
 type HotkeyCallback = (event: KeyboardEvent) => void;
 
@@ -61,6 +62,18 @@ function tryExpressionHotkey(e: KeyboardEvent): boolean {
   return false;
 }
 
+/** No Modo Sala, a tecla troca a face ativa de TODO avatar que tenha essa hotkey. */
+function tryRoomExpressionHotkey(e: KeyboardEvent): boolean {
+  const r = get(room);
+  if (!r.enabled) return false;
+  let handled = false;
+  for (const a of r.avatars) {
+    const match = (a.expressions ?? []).find((ex) => ex.hotkey === e.code);
+    if (match) { setActiveRoomExpression(a.id, match.id); handled = true; }
+  }
+  return handled;
+}
+
 /**
  * Inicializa o listener global de teclado. Chamar uma vez (no Editor).
  * Ordem: expressões (por código físico) → atalhos genéricos (por tecla normalizada).
@@ -70,8 +83,9 @@ export function initHotkeyManager(): () => void {
     if (capturing) return;
     if (isTypingTarget(e.target)) return;
 
-    // 1) Troca de expressão — apenas teclas "puras" (sem ctrl/alt/meta)
-    if (!e.ctrlKey && !e.metaKey && !e.altKey && tryExpressionHotkey(e)) {
+    // 1) Troca de expressão — apenas teclas "puras" (sem ctrl/alt/meta).
+    //    No Modo Sala usa as expressões dos avatares; senão, as do Solo.
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && (tryRoomExpressionHotkey(e) || tryExpressionHotkey(e))) {
       e.preventDefault();
       return;
     }

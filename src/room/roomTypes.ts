@@ -7,12 +7,23 @@ export type AudioBindingMode =
   | "individual_input"         // preparado, ainda não implementado
   | "future_discord_capture";  // stub para foco futuro em Discord
 
-/** Avatar da sala — reaproveita o conceito de 4 imagens; preparado para evoluir. */
-export interface RoomAvatar {
+/** Uma expressão nomeada de um avatar da sala (reusa o conceito de 4 imagens). */
+export interface RoomExpression {
   id: string;
   name: string;
   images: ExpressionImages;   // mouthClosed / mouthOpen / blinkClosed / blinkOpen
-  // futuro: expressions, layers, states, blink, animationPresets
+  hotkey: string | null;      // event.code (ex.: "Digit1") para trocar na hora
+}
+
+/** Avatar da sala — imagens base ("Neutro") + expressões nomeadas opcionais. */
+export interface RoomAvatar {
+  id: string;
+  name: string;
+  images: ExpressionImages;              // base / "Neutro" (fallback)
+  expressions?: RoomExpression[];        // expressões nomeadas (Fase 2B)
+  activeExpressionId?: string | null;    // expressão ativa (manual/hotkey)
+  shoutExpressionId?: string | null;     // expressão exibida ao gritar
+  // futuro: layers, states, animationPresets
 }
 
 export interface ParticipantPosition { x: number; y: number; }

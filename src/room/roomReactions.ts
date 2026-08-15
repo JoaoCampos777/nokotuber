@@ -19,14 +19,19 @@ export function applyReaction(
   effects: VoiceReactionEffectType[],
   intensity: number,
   durationMs: number,
+  expressionId: string | null = null,
 ): void {
-  if (!participantId || !Array.isArray(effects) || effects.length === 0 || durationMs <= 0) return;
+  // Uma reação pode ser só troca de expressão (grito) sem efeitos de transform,
+  // então aceita effects vazio desde que haja uma expressão.
+  if (!participantId || durationMs <= 0) return;
+  if ((!Array.isArray(effects) || effects.length === 0) && !expressionId) return;
   const reaction: ActiveRoomReaction = {
     participantId,
-    effects: [...effects],
+    effects: Array.isArray(effects) ? [...effects] : [],
     intensity,
     startedAt: performance.now(),
     durationMs,
+    expressionId,
   };
   activeRoomReactions.update((m) => ({ ...m, [participantId]: reaction }));
   const prev = timers.get(participantId);

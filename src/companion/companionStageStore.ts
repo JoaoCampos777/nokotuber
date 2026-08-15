@@ -16,25 +16,35 @@ function resolveImg(v: string | null): string | null {
   if (v.startsWith(ASSET_PREFIX)) return assetCache.get(v.slice(ASSET_PREFIX.length)) ?? null; // falta → placeholder
   return v; // URL leve/inline
 }
+function resolveMap(src: Record<string, string | null> | undefined): any {
+  const out: any = {};
+  for (const slot of Object.keys(src ?? {})) out[slot] = resolveImg((src as any)[slot]);
+  return out;
+}
 function resolveSnapshot(lite: RoomSnapshotMessage): RoomSnapshotMessage {
   const avatars: any = {};
   for (const [id, a] of Object.entries(lite.avatars ?? {})) {
-    const src = ((a as any).images ?? {}) as Record<string, string | null>;
-    const images: any = {};
-    for (const slot of Object.keys(src)) images[slot] = resolveImg(src[slot]);
-    avatars[id] = { ...(a as any), images };
+    const av: any = { ...(a as any), images: resolveMap((a as any).images) };
+    if (Array.isArray((a as any).expressions)) {
+      av.expressions = (a as any).expressions.map((e: any) => ({ ...e, images: resolveMap(e?.images) }));
+    }
+    avatars[id] = av;
   }
   return { ...lite, avatars };
+}
+function collectRefs(src: Record<string, string | null> | undefined, out: Set<string>): void {
+  for (const v of Object.values(src ?? {})) {
+    if (typeof v === "string" && v.startsWith(ASSET_PREFIX)) {
+      const id = v.slice(ASSET_PREFIX.length);
+      if (!assetCache.has(id)) out.add(id);
+    }
+  }
 }
 function missingAssetIds(lite: RoomSnapshotMessage): string[] {
   const ids = new Set<string>();
   for (const a of Object.values(lite.avatars ?? {})) {
-    for (const v of Object.values(((a as any).images ?? {}) as Record<string, string | null>)) {
-      if (typeof v === "string" && v.startsWith(ASSET_PREFIX)) {
-        const id = v.slice(ASSET_PREFIX.length);
-        if (!assetCache.has(id)) ids.add(id);
-      }
-    }
+    collectRefs((a as any).images, ids);
+    for (const e of ((a as any).expressions ?? [])) collectRefs(e?.images, ids);
   }
   return [...ids];
 }
@@ -93,6 +103,7 @@ export function applyParticipantReaction(payload: any): void {
     effects: Array.isArray(payload?.effects) ? payload.effects : [],
     intensity: typeof payload?.intensity === "number" ? payload.intensity : 70,
     durationMs: typeof payload?.durationMs === "number" ? payload.durationMs : 700,
+    expressionId: typeof payload?.expressionId === "string" ? payload.expressionId : null,
   });
 }
 

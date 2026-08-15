@@ -8,6 +8,8 @@ import { ROOM_CANVAS } from "../room/roomTypes";
 import { project } from "../project/projectStore";
 import { participantEffects } from "../effects/participantEffectsStore";
 import { applyReaction } from "../room/roomReactions";
+import { audioLevel } from "../audio/audioStore";
+import { audioRouting } from "../audio/audioBindingStore";
 import { ASSET_PREFIX, type RoomSnapshotMessage } from "./companionStageTypes";
 
 function isTauri(): boolean { return typeof (window as any).__TAURI_INTERNALS__ !== "undefined"; }
@@ -46,6 +48,20 @@ function toAssetRef(url: string | null | undefined): string | null {
 
 const IMAGE_SLOTS = ["mouthClosed", "mouthOpen", "blinkClosed", "blinkOpen"] as const;
 
+/** Converte um conjunto de 4 imagens em refs `asset:<hash>` e registra os ids. */
+function refImages(src: any, requiredAssets: string[]): any {
+  const out: any = {};
+  for (const slot of IMAGE_SLOTS) {
+    const ref = toAssetRef(src?.[slot]);
+    out[slot] = ref;
+    if (typeof ref === "string" && ref.startsWith(ASSET_PREFIX)) {
+      const id = ref.slice(ASSET_PREFIX.length);
+      if (!requiredAssets.includes(id)) requiredAssets.push(id);
+    }
+  }
+  return out;
+}
+
 /** Monta o snapshot da cena a partir do room store (participantes visíveis + avatares + efeitos + fundo). */
 export function buildRoomSnapshot(): RoomSnapshotMessage {
   const participants = get(visibleParticipants);
@@ -55,16 +71,15 @@ export function buildRoomSnapshot(): RoomSnapshotMessage {
   for (const p of participants) {
     const a = r.avatars.find((x) => x.id === p.avatarId);
     if (a && !avatars[a.id]) {
-      const images: any = {};
-      for (const slot of IMAGE_SLOTS) {
-        const ref = toAssetRef((a.images as any)?.[slot]);
-        images[slot] = ref;
-        if (typeof ref === "string" && ref.startsWith(ASSET_PREFIX)) {
-          const id = ref.slice(ASSET_PREFIX.length);
-          if (!requiredAssets.includes(id)) requiredAssets.push(id);
-        }
-      }
-      avatars[a.id] = { id: a.id, name: a.name, images };
+      const images = refImages(a.images, requiredAssets);
+      const expressions = (a.expressions ?? []).map((e) => ({
+        id: e.id, name: e.name, hotkey: e.hotkey, images: refImages(e.images, requiredAssets),
+      }));
+      avatars[a.id] = {
+        id: a.id, name: a.name, images, expressions,
+        activeExpressionId: a.activeExpressionId ?? null,
+        shoutExpressionId: a.shoutExpressionId ?? null,
+      };
     }
   }
   // Efeitos por participante (mesmo formato/store do Host) — só dos visíveis.
@@ -143,29 +158,79 @@ async function broadcastParticipantSpeaking(participantId: string, isSpeaking: b
 }
 
 const lastReactionAt = new Map<string, number>();
+const lastShoutAt = new Map<string, number>();
+const remoteVolume = new Map<string, number>(); // volume atual por usuário Companion (0..100)
+let lastShoutEval = 0;
 
-/** Dispara a reação de voz de um participante (local + broadcast). `manual` ignora enabled/cooldown. */
-function fireHostReaction(participantId: string, manual = false): void {
+/** Volume atual estimado de um participante: Companion → volume enviado; caso contrário → mic do Host. */
+function currentVolumeFor(participantId: string): number {
+  const b = get(audioRouting).bindings.find((x) => x.participantId === participantId);
+  if (b?.mode === "remote_companion_user" && b.externalUserId) return remoteVolume.get(b.externalUserId) ?? 0;
+  return get(audioLevel);
+}
+
+/** Expressão de grito configurada para o avatar do participante (ou null). */
+function shoutExpressionFor(participantId: string): string | null {
+  const r = get(room);
+  const p = r.participants.find((x) => x.id === participantId);
+  const a = p ? r.avatars.find((x) => x.id === p.avatarId) : undefined;
+  return a?.shoutExpressionId ?? null;
+}
+
+/**
+ * Dispara a reação de voz de um participante (local + broadcast). `manual` ignora
+ * enabled/cooldown. `expressionId` troca a face (grito) durante a reação.
+ */
+function fireHostReaction(participantId: string, manual = false, expressionId: string | null = null): void {
   const fx = get(participantEffects).find((e) => e.participantId === participantId);
   const vr = fx?.voiceReaction;
-  if (!vr || !vr.effects?.length) return;
-  if (!manual && !vr.enabled) return;
+  const effects = vr?.effects ?? [];
+  if (!effects.length && !expressionId) return;              // nada a mostrar
+  if (!manual && vr && !vr.enabled && !expressionId) return; // efeitos exigem enabled; grito não
   const now = Date.now();
+  const intensity = vr?.intensity ?? 70;
+  const durationMs = vr?.durationMs ?? 700;
   if (!manual) {
     const last = lastReactionAt.get(participantId) ?? 0;
-    if (now - last < vr.cooldownMs) return;
+    if (now - last < (vr?.cooldownMs ?? 900)) return;
   }
   lastReactionAt.set(participantId, now);
-  applyReaction(participantId, vr.effects, vr.intensity, vr.durationMs); // mostra no Host
+  applyReaction(participantId, effects, intensity, durationMs, expressionId); // mostra no Host
   broadcast(JSON.stringify({
     type: "participant_reaction",
-    participantId, effects: vr.effects, intensity: vr.intensity, durationMs: vr.durationMs, sentAt: now,
+    participantId, effects, intensity, durationMs, expressionId, sentAt: now,
   }), true); // alta prioridade, imediato
 }
 
-/** Botão "Simular reação" (por participante) — sempre dispara, isolado naquele participante. */
+/** Botão "Testar" (por participante) — sempre dispara + mostra a expressão de grito, se houver. */
 export function simulateParticipantReaction(participantId: string): void {
-  fireHostReaction(participantId, true);
+  fireHostReaction(participantId, true, shoutExpressionFor(participantId));
+}
+
+/**
+ * Avalia gritos: para cada participante FALANDO com expressão de grito configurada,
+ * se o volume passou do limiar (e fora do cooldown), troca para a expressão de grito.
+ * Chamado quando o volume muda (mic do Host ou volume de um Companion). Throttle interno.
+ */
+function evaluateShouts(): void {
+  const now = Date.now();
+  if (now - lastShoutEval < 80) return;
+  lastShoutEval = now;
+  const r = get(room);
+  if (!r.enabled) return;
+  const fxList = get(participantEffects);
+  for (const p of r.participants) {
+    if (!p.isSpeaking) continue;
+    const expId = shoutExpressionFor(p.id);
+    if (!expId) continue;
+    const vr = fxList.find((e) => e.participantId === p.id)?.voiceReaction;
+    const threshold = vr?.shoutThreshold ?? 101; // 101 = desligado
+    if (currentVolumeFor(p.id) < threshold) continue;
+    const dur = vr?.durationMs ?? 700;
+    if (now - (lastShoutAt.get(p.id) ?? 0) < dur) continue; // não re-disparar enquanto ativo
+    lastShoutAt.set(p.id, now);
+    fireHostReaction(p.id, true, expId);
+  }
 }
 
 let inited = false;
@@ -192,6 +257,13 @@ export function initCompanionHostSync(): void {
     enqueueAssets(ids);
   }).catch(() => {});
 
+  // 1c) Volume de cada Companion → detecta grito (troca p/ expressão de grito).
+  listen<any>("companion://speaking", (ev) => {
+    const p = ev.payload;
+    if (p?.id) remoteVolume.set(p.id, typeof p.volume === "number" ? p.volume : 0);
+    evaluateShouts();
+  }).catch(() => {});
+
   // 2) Mudanças na sala: fala imediata (mensagem leve) + snapshot visual com debounce.
   room.subscribe((r) => {
     for (const p of r.participants) {
@@ -209,4 +281,7 @@ export function initCompanionHostSync(): void {
   // 3) Mudanças de efeitos por participante e de fundo (project.view) → reenvia a cena (debounce).
   participantEffects.subscribe(() => scheduleSnapshot());
   project.subscribe(() => scheduleSnapshot());
+
+  // 4) Grito pelo microfone do Host: avalia sempre que o volume muda.
+  audioLevel.subscribe(() => evaluateShouts());
 }

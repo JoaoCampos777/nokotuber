@@ -33,8 +33,12 @@ export interface RoomSnapshotMessage {
   scene: RoomSnapshotScene;
   /** Participantes visíveis, já ordenados por zIndex (formato nativo do renderer). */
   participants: RoomParticipant[];
-  /** Avatares referenciados; images contém refs `asset:<hash>` (ou URL inline leve). */
-  avatars: Record<string, Pick<RoomAvatar, "id" | "name" | "images">>;
+  /**
+   * Avatares referenciados; images (base) e images de cada expressão contêm refs
+   * `asset:<hash>` (ou URL inline leve). Inclui expressões nomeadas + qual está
+   * ativa/de grito, para a Janela renderizar igual ao Host.
+   */
+  avatars: Record<string, Pick<RoomAvatar, "id" | "name" | "images" | "expressions" | "activeExpressionId" | "shoutExpressionId">>;
   /** Efeitos por participante (mesmo formato do store participantEffects do Host). */
   effects: Record<string, ParticipantEffects>;
   /** Ids de asset referenciados por este snapshot (para o Companion pedir os ausentes). */

@@ -28,6 +28,35 @@ function pickImage(images: ExpressionImages, talking: boolean, blinking: boolean
   return images.mouthClosed ?? null;
 }
 
+/** Completa slots vazios da expressão com os da base (Neutro). */
+function mergeImages(base: ExpressionImages, over: ExpressionImages): ExpressionImages {
+  return {
+    mouthClosed: over.mouthClosed ?? base.mouthClosed,
+    mouthOpen:   over.mouthOpen   ?? base.mouthOpen,
+    blinkClosed: over.blinkClosed ?? base.blinkClosed,
+    blinkOpen:   over.blinkOpen   ?? base.blinkOpen,
+  };
+}
+
+/**
+ * Imagens efetivas do avatar: expressão do grito (reação ativa) → expressão ativa
+ * (manual/hotkey) → base. Compat: avatar sem expressões usa a base como antes.
+ */
+function resolveAvatarImages(avatar: RoomAvatar, reaction?: ActiveRoomReaction): ExpressionImages {
+  const exps = avatar.expressions ?? [];
+  if (exps.length) {
+    if (reaction?.expressionId) {
+      const ex = exps.find((e) => e.id === reaction.expressionId);
+      if (ex) return mergeImages(avatar.images, ex.images);
+    }
+    if (avatar.activeExpressionId) {
+      const ex = exps.find((e) => e.id === avatar.activeExpressionId);
+      if (ex) return mergeImages(avatar.images, ex.images);
+    }
+  }
+  return avatar.images;
+}
+
 export class RoomRenderer2D {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -98,12 +127,13 @@ export class RoomRenderer2D {
       const avatar = s.avatars[p.avatarId];
       const talking = p.isSpeaking;   // o renderer lê SOMENTE isSpeaking (fonte vem do router)
       const blinking = this.isBlinking(p.id, now);
-      const url = avatar ? pickImage(avatar.images, talking, blinking) : null;
+      const rawReaction = s.reactions?.[p.id];
+      const url = avatar ? pickImage(resolveAvatarImages(avatar, rawReaction), talking, blinking) : null;
       const img = this.getImage(url);
 
       const seed = participantSeed(p.id);
       const fx = resolveParticipantEffects(s.effects?.[p.id], talking, now, seed);
-      const rx = resolveReactionTransform(s.reactions?.[p.id], now, seed);
+      const rx = resolveReactionTransform(rawReaction, now, seed);
       // Combina efeitos contínuos (fx) + reação de voz transitória (rx).
       const dx = fx.dx + rx.dx;
       const dy = fx.dy + rx.dy;
