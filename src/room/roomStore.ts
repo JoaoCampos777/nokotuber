@@ -35,10 +35,10 @@ function normalizeAvatar(a: any): RoomAvatar {
   };
 }
 
-function makeParticipant(index: number, avatarId: string, x: number): RoomParticipant {
+function makeParticipant(id: string, num: number, avatarId: string, x: number, zIndex: number): RoomParticipant {
   return {
-    id: `participant_${index}`,
-    name: `Pessoa ${index}`,
+    id,
+    name: `Pessoa ${num}`,
     enabled: true,
     avatarId,
     audioSourceId: "default",
@@ -47,7 +47,7 @@ function makeParticipant(index: number, avatarId: string, x: number): RoomPartic
     scale: 1,
     rotation: 0,
     opacity: 1,
-    zIndex: index - 1,
+    zIndex,
     mirrorX: false,
     isSpeaking: false,
     expressionStateId: "idle",
@@ -62,8 +62,8 @@ function defaultRoom(): RoomSettings {
     layoutMode: "manual",
     avatars: [makeAvatar("avatar_1", "Avatar 1"), makeAvatar("avatar_2", "Avatar 2")],
     participants: [
-      makeParticipant(1, "avatar_1", ROOM_CANVAS.width * 0.32),
-      makeParticipant(2, "avatar_2", ROOM_CANVAS.width * 0.68),
+      makeParticipant("participant_1", 1, "avatar_1", ROOM_CANVAS.width * 0.32, 0),
+      makeParticipant("participant_2", 2, "avatar_2", ROOM_CANVAS.width * 0.68, 1),
     ],
   };
 }
@@ -82,8 +82,9 @@ function mergeRoom(raw: any): RoomSettings {
       : base.avatars,
     participants: Array.isArray(raw.participants) && raw.participants.length
       ? raw.participants.map((p: any, i: number) => ({
-          ...makeParticipant(i + 1, p.avatarId ?? `avatar_${i + 1}`, p.position?.x ?? ROOM_CANVAS.width * 0.5),
+          ...makeParticipant(p.id ?? `participant_${i + 1}`, i + 1, p.avatarId ?? `avatar_${i + 1}`, p.position?.x ?? ROOM_CANVAS.width * 0.5, typeof p.zIndex === "number" ? p.zIndex : i),
           ...p,
+          id: p.id ?? `participant_${i + 1}`,
           position: { x: p.position?.x ?? ROOM_CANVAS.width * 0.5, y: p.position?.y ?? ROOM_CANVAS.height * 0.62 },
           isSpeaking: false,
           audioMode: (p.audioMode as AudioBindingMode) ?? "shared_microphone",
@@ -147,17 +148,38 @@ export function resetParticipantTransform(id: string): void {
   updateParticipant(id, { scale: 1, rotation: 0, opacity: 1, mirrorX: false });
 }
 
+/** Adiciona um participante (id único). Retorna o id do novo participante, ou null no limite. */
 export function addParticipant(): string | null {
   const r = get(room);
   if (r.participants.length >= ROOM_MAX_FUTURE) return null;
-  const n = r.participants.length + 1;
+  const num = r.participants.length + 1;
+  const pid = uid("participant");
   const avatarId = uid("avatar");
+  const maxZ = r.participants.reduce((m, p) => Math.max(m, p.zIndex), -1);
+  // Distribui horizontalmente para o novo não nascer exatamente sobre outro.
+  const x = ROOM_CANVAS.width * (0.5 + ((num % 2 === 0 ? 1 : -1) * 0.12 * Math.ceil(num / 3)));
   room.update((cur) => ({
     ...cur,
-    avatars: [...cur.avatars, makeAvatar(avatarId, `Avatar ${n}`)],
-    participants: [...cur.participants, makeParticipant(n, avatarId, ROOM_CANVAS.width * 0.5)],
+    avatars: [...cur.avatars, makeAvatar(avatarId, `Avatar ${num}`)],
+    participants: [...cur.participants, makeParticipant(pid, num, avatarId, Math.max(0, Math.min(ROOM_CANVAS.width, x)), maxZ + 1)],
   }));
-  return avatarId;
+  return pid;
+}
+
+/** Move um participante uma camada acima/abaixo (troca zIndex com o vizinho). */
+export function moveParticipantLayer(id: string, dir: -1 | 1): void {
+  room.update((r) => {
+    const sorted = [...r.participants].sort((a, b) => a.zIndex - b.zIndex);
+    const idx = sorted.findIndex((p) => p.id === id);
+    const swapWith = idx + dir;
+    if (idx < 0 || swapWith < 0 || swapWith >= sorted.length) return r;
+    const a = sorted[idx], b = sorted[swapWith];
+    return {
+      ...r,
+      participants: r.participants.map((p) =>
+        p.id === a.id ? { ...p, zIndex: b.zIndex } : p.id === b.id ? { ...p, zIndex: a.zIndex } : p),
+    };
+  });
 }
 
 export function removeParticipant(id: string): void {

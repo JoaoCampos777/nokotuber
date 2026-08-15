@@ -7,9 +7,9 @@
   import RoomQuickStart from "./RoomQuickStart.svelte";
   import {
     room, updateParticipant, centerParticipant, resetParticipantTransform,
-    setAvatarImage, clearAvatarImage,
+    setAvatarImage, clearAvatarImage, addParticipant, removeParticipant, moveParticipantLayer,
   } from "../../room/roomStore";
-  import { ROOM_CANVAS } from "../../room/roomTypes";
+  import { ROOM_CANVAS, ROOM_MAX_FUTURE } from "../../room/roomTypes";
   import type { ExpressionImageSlot } from "../../project/expressionTypes";
   import { importImageFile } from "../../core/desktop";
   import { setManualSpeaking } from "../../audio/manualSpeakingProvider";
@@ -54,6 +54,15 @@
   onMount(() => { const ps = get(room).participants; if (ps[0]) expandedId = ps[0].id; });
   function toggleParticipant(id: string) { expandedId = expandedId === id ? "" : id; }
 
+  function handleAdd() { const id = addParticipant(); if (id) expandedId = id; }
+  function handleRemove(id: string, name: string) {
+    if (window.confirm(`Remover "${name}" da sala? As imagens e ajustes dele são perdidos.`)) {
+      if (expandedId === id) expandedId = "";
+      removeParticipant(id);
+    }
+  }
+  $: atLimit = $room.participants.length >= ROOM_MAX_FUTURE;
+
   let fxOpen: Record<string, boolean> = {};
   function toggleFx(id: string) { fxOpen = { ...fxOpen, [id]: !fxOpen[id] }; }
   let exOpen: Record<string, boolean> = {};
@@ -97,8 +106,15 @@
 
   <!-- PARTICIPANTES (personagens do palco) -->
   <div data-tour="participants">
-  <SectionAccordion title="Participantes" storageKey="room-parts" badge={String($room.participants.length)}>
+  <SectionAccordion title="Participantes" storageKey="room-parts" badge={`${$room.participants.length} / ${ROOM_MAX_FUTURE}`}>
     <div class="parts">
+      <div class="parts-head">
+        {#if atLimit}
+          <span class="parts-limit">Limite de {ROOM_MAX_FUTURE} participantes atingido.</span>
+        {:else}
+          <button class="chip accent full" on:click={handleAdd}>＋ Adicionar participante</button>
+        {/if}
+      </div>
       {#each $room.participants as p (p.id)}
         {@const av = avatarOf(p.avatarId)}
         {@const st = statusOf(p)}
@@ -159,6 +175,14 @@
                 {/if}
                 <button class="chip" on:click={() => centerParticipant(p.id)}>⊕ Centralizar</button>
                 <button class="chip" on:click={() => resetParticipantTransform(p.id)}>↺ Resetar</button>
+              </div>
+
+              <div class="row">
+                {#if advanced}
+                  <button class="chip" on:click={() => moveParticipantLayer(p.id, 1)} title="Trazer para frente">⬆ Camada</button>
+                  <button class="chip" on:click={() => moveParticipantLayer(p.id, -1)} title="Enviar para trás">⬇ Camada</button>
+                {/if}
+                <button class="chip danger" disabled={$room.participants.length <= 1} on:click={() => handleRemove(p.id, p.name)}>🗑 Remover</button>
               </div>
 
               <div class="row">
@@ -223,7 +247,16 @@
 
   .chip { background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border-soft); border-radius: var(--radius-sm); padding: 4px 8px; font-size: 11px; cursor: pointer; font-family: inherit; white-space: nowrap; }
   .chip:hover { background: var(--color-bg-hover); color: var(--color-text-primary); }
+  .chip:disabled { opacity: .45; cursor: not-allowed; }
   .chip.on { color: var(--color-accent); border-color: var(--color-accent-dim); background: var(--color-accent-soft); }
+  .chip.accent { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+  .chip.accent:hover { background: var(--color-accent-hover); color: #fff; }
+  .chip.full { width: 100%; }
+  .chip.danger { color: var(--color-danger); border-color: var(--color-danger); }
+  .chip.danger:hover:not(:disabled) { background: var(--color-danger); color: #fff; }
+
+  .parts-head { margin-bottom: 2px; }
+  .parts-limit { font-size: 10px; color: var(--color-warning); text-align: center; display: block; padding: 5px; border: 1px dashed var(--color-border-soft); border-radius: var(--radius-sm); }
 
   .img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
   .img-slot { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
