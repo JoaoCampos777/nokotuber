@@ -1,10 +1,11 @@
 # Nokotuber no macOS — build e teste (v0.4.0)
 
-> Estado: **🟠 CI preparado; build macOS ainda não executado / não testado em Mac real.**
-> O código é portável e o CI (GitHub Actions) compila para Apple Silicon e Intel,
-> mas nada foi validado num Mac de verdade. **Não afirme que "funciona no Mac"**
-> antes de um teste funcional em Mac real. Após o CI rodar: *"Build macOS validado
-> em CI; teste funcional em Mac real pendente."*
+> Estado: **🟡 Build macOS validado em CI (Apple Silicon nativo + Intel cross-compile);
+> teste funcional em Mac real pendente.**
+> O CI (GitHub Actions) **compilou e empacotou** com sucesso os dois alvos e gerou
+> os `.app`/`.dmg` como Artifacts. Ainda **não** foi executado/testado num Mac de
+> verdade. **Não afirme que "funciona no Mac"** antes de um teste funcional em Mac
+> real (abrir o app, microfone, salvar projeto, Sala/Companion etc.).
 
 ## O que já está pronto
 - **Servidor Room/Companion** usa `std::net` + `tungstenite` (portável); IP local
