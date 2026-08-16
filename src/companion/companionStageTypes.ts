@@ -38,7 +38,7 @@ export interface RoomSnapshotMessage {
    * `asset:<hash>` (ou URL inline leve). Inclui expressões nomeadas + qual está
    * ativa/de grito, para a Janela renderizar igual ao Host.
    */
-  avatars: Record<string, Pick<RoomAvatar, "id" | "name" | "images" | "expressions" | "activeExpressionId" | "shoutExpressionId">>;
+  avatars: Record<string, Pick<RoomAvatar, "id" | "name" | "images" | "expressions" | "activeExpressionId" | "shoutExpressionId" | "addons">>;
   /** Efeitos por participante (mesmo formato do store participantEffects do Host). */
   effects: Record<string, ParticipantEffects>;
   /** Ids de asset referenciados por este snapshot (para o Companion pedir os ausentes). */

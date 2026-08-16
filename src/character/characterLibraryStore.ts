@@ -6,6 +6,7 @@ import { createEmptyProject } from "../project/projectTypes";
 import { expressionState, applyExpressions } from "../project/expressionStore";
 import { voiceReactionRule, audioThreshold } from "../audio/audioStore";
 import { defaultReactionRule } from "../audio/voiceReactionTypes";
+import { normalizeAddons } from "../addons/addonTypes";
 import { setLastCharacter, forgetCharacter } from "./startupPrefsStore";
 import { saveTextFileAs, openTextFile } from "../core/desktop";
 
@@ -56,7 +57,7 @@ function normalizeCharacter(raw: any): Character {
     voiceReaction: raw?.voiceReaction && typeof raw.voiceReaction === "object"
       ? { ...defaultReactionRule(), ...raw.voiceReaction }
       : defaultReactionRule(),
-    addons: Array.isArray(raw?.addons) ? raw.addons : undefined,
+    addons: normalizeAddons(raw?.addons),
     mouth: raw?.mouth ?? undefined,
     meta: raw?.meta && typeof raw.meta === "object" ? raw.meta : { source: "local" },
   };
@@ -103,6 +104,7 @@ export function captureCurrentCharacter(name: string): Character {
     useDefaultAvatar: p.useDefaultAvatar,
     expressions: clone(get(expressionState)),
     voiceReaction: clone(get(voiceReactionRule)),
+    addons: clone(p.addons ?? []),
     meta: { source: "local" },
   };
 }
@@ -161,6 +163,7 @@ export function applyCharacter(id: string, opts?: { markDirty?: boolean }): bool
     audioConfig: clone(c.audioConfig),
     view: clone(c.view),
     effects: clone(c.effects),
+    addons: clone(c.addons ?? []),
     useDefaultAvatar: c.useDefaultAvatar,
     updatedAt: nowIso(),
   }));

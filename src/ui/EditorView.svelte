@@ -12,6 +12,7 @@
   import OnboardingTour from "./components/OnboardingTour.svelte";
   import SectionAccordion from "./components/SectionAccordion.svelte";
   import CharacterLibraryPanel from "./components/CharacterLibraryPanel.svelte";
+  import AddonControls from "./components/AddonControls.svelte";
   import { characters, applyCharacter, getCharacter } from "../character/characterLibraryStore";
   import { resolveStartupCharacterId } from "../character/startupPrefsStore";
   import { uiPrefs } from "./uiPrefsStore";
@@ -30,6 +31,7 @@
     project, isDirty, currentProjectPath,
     setImage, clearImage, updateBlinkConfig,
     newProject, toggleDefaultAvatar, loadProject, type ImageSlot,
+    addProjectAddon, removeProjectAddon, updateProjectAddon,
   } from "../project/projectStore";
   import { audioLevel, isTalking, audioThreshold, isAudioActive, startAudioCapture, stopAudioCapture, simulateReaction, voiceReactionRule, isReacting, activeVoiceReactions } from "../audio/audioStore";
   import { avatarState, currentImageUrl, startAvatarController } from "../avatar/avatarController";
@@ -145,6 +147,7 @@
       view: p.view, effects: p.effects,
       blinkConfig: p.blinkConfig, audioConfig: p.audioConfig,
       useDefaultAvatar: p.useDefaultAvatar,
+      addons: p.addons,
     }).catch(() => {});
   }
   function emitImages(force = false) {
@@ -201,7 +204,7 @@
   function emitReactionRule()  { emit("nokotuber:reaction-rule", get(voiceReactionRule)).catch(() => {}); }
   function emitReactionState() { emit("nokotuber:reaction-state", { isReacting: get(isReacting), types: get(activeVoiceReactions) }).catch(() => {}); }
 
-  $: if (inTauri && perfOpen) { $project.view; $project.effects; $project.blinkConfig; $project.audioConfig; $project.useDefaultAvatar; emitConfig(); }
+  $: if (inTauri && perfOpen) { $project.view; $project.effects; $project.blinkConfig; $project.audioConfig; $project.useDefaultAvatar; $project.addons; emitConfig(); }
   $: if (inTauri && perfOpen) { if ($project.images !== lastImagesRef) { lastImagesRef = $project.images; emit("nokotuber:images", $project.images).catch(() => {}); } }
   $: if (inTauri) emit("avatar:image-changed", $currentImageUrl).catch(() => {});
   $: if (inTauri && perfOpen && $expressionState) emitExpression();
@@ -391,6 +394,15 @@
             <input class="config-range" type="range" min="50" max="500" step="10" value={$project.blinkConfig.duration} on:input={onDuration} />
             <span class="config-value">{$project.blinkConfig.duration}ms</span></div>
         </div>
+
+        {#if $uiPrefs.mode === "advanced"}
+          <div class="char-lib" data-tour="addons">
+            <SectionAccordion title="Acessórios (add-ons)" storageKey="avatar-addons" open={false} badge={String($project.addons?.length ?? 0)}>
+              <AddonControls addons={$project.addons ?? []}
+                onAdd={addProjectAddon} onRemove={removeProjectAddon} onUpdate={updateProjectAddon} />
+            </SectionAccordion>
+          </div>
+        {/if}
       {:else if leftTab === "visual"}
         <ViewSettingsPanel />
       {:else if leftTab === "sala"}

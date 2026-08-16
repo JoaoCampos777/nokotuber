@@ -75,8 +75,16 @@ export function buildRoomSnapshot(): RoomSnapshotMessage {
       const expressions = (a.expressions ?? []).map((e) => ({
         id: e.id, name: e.name, hotkey: e.hotkey, images: refImages(e.images, requiredAssets),
       }));
+      const addons = (a.addons ?? []).map((ad) => {
+        const ref = toAssetRef(ad.image);
+        if (typeof ref === "string" && ref.startsWith(ASSET_PREFIX)) {
+          const id = ref.slice(ASSET_PREFIX.length);
+          if (!requiredAssets.includes(id)) requiredAssets.push(id);
+        }
+        return { ...ad, image: ref };
+      });
       avatars[a.id] = {
-        id: a.id, name: a.name, images, expressions,
+        id: a.id, name: a.name, images, expressions, addons,
         activeExpressionId: a.activeExpressionId ?? null,
         shoutExpressionId: a.shoutExpressionId ?? null,
       };

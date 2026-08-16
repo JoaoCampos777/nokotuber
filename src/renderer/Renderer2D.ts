@@ -1,5 +1,6 @@
 import type { ViewSettings } from "../view/viewTypes";
 import type { AvatarEffect } from "../effects/effectTypes";
+import type { Addon } from "../addons/addonTypes";
 import type { AvatarState } from "../avatar/avatarController";
 import { EffectSystem } from "../effects/effectSystem";
 import { DEFAULT_VIEW_SETTINGS } from "../view/viewTypes";
@@ -19,6 +20,8 @@ export interface FrameInput {
     intensity: number;  // 0..100
     isReacting: boolean;
   } | null;
+  /** Acessórios sobrepostos (Fase 3). */
+  addons?: Addon[];
 }
 
 export interface RendererOptions {
@@ -211,6 +214,13 @@ export class Renderer2D {
     const f        = view.filters ?? DEFAULT_VIEW_SETTINGS.filters;
     const briTotal = Math.max(0, f.brightness * fx.brightness);
 
+    const refScale = baseScale * sizeMul;
+    const avatarRot = fx.rotation + vrRot;
+    const addons = s.addons ?? [];
+
+    // Add-ons ATRÁS do personagem (zIndex < 0).
+    if (addons.length) this.drawSoloAddons(addons, true, cx, cy, avatarRot, refScale, fx.alpha);
+
     ctx.save();
     ctx.filter = `hue-rotate(${f.hue}deg) saturate(${f.saturation}) brightness(${briTotal})`;
     ctx.globalAlpha = fx.alpha;
@@ -218,6 +228,38 @@ export class Renderer2D {
     if (fx.rotation || vrRot) ctx.rotate(fx.rotation + vrRot);
     ctx.drawImage(img, -w / 2, -h / 2, w, h);
     ctx.restore();
+
+    // Add-ons À FRENTE do personagem (zIndex >= 0).
+    if (addons.length) this.drawSoloAddons(addons, false, cx, cy, avatarRot, refScale, fx.alpha);
+  }
+
+  private getCachedImage(url: string): HTMLImageElement | null {
+    let img = this.cache.get(url);
+    if (!img) { img = new Image(); img.src = url; this.cache.set(url, img); }
+    return img.complete && img.naturalWidth > 0 ? img : null;
+  }
+
+  /** Desenha os add-ons do personagem, acompanhando centro/rotação/tamanho do avatar. */
+  private drawSoloAddons(addons: Addon[], behind: boolean, cx: number, cy: number, rot: number, refScale: number, alpha: number): void {
+    const { ctx } = this;
+    const list = addons
+      .filter((a) => a.visible && a.image && (behind ? a.zIndex < 0 : a.zIndex >= 0))
+      .sort((a, b) => a.zIndex - b.zIndex);
+    for (const ad of list) {
+      const img = this.getCachedImage(ad.image as string);
+      if (!img) continue;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha * ad.opacity));
+      ctx.translate(cx, cy);
+      if (rot) ctx.rotate(rot);
+      ctx.translate(ad.x * refScale, ad.y * refScale);
+      if (ad.rotation) ctx.rotate((ad.rotation * Math.PI) / 180);
+      if (ad.mirror) ctx.scale(-1, 1);
+      const w = img.naturalWidth  * ad.scale * refScale;
+      const h = img.naturalHeight * ad.scale * refScale;
+      ctx.drawImage(img, -w / 2, -h / 2, w, h);
+      ctx.restore();
+    }
   }
 
   private drawBackground(view: ViewSettings): void {

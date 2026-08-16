@@ -28,6 +28,9 @@ function resolveSnapshot(lite: RoomSnapshotMessage): RoomSnapshotMessage {
     if (Array.isArray((a as any).expressions)) {
       av.expressions = (a as any).expressions.map((e: any) => ({ ...e, images: resolveMap(e?.images) }));
     }
+    if (Array.isArray((a as any).addons)) {
+      av.addons = (a as any).addons.map((ad: any) => ({ ...ad, image: resolveImg(ad?.image ?? null) }));
+    }
     avatars[id] = av;
   }
   return { ...lite, avatars };
@@ -45,6 +48,13 @@ function missingAssetIds(lite: RoomSnapshotMessage): string[] {
   for (const a of Object.values(lite.avatars ?? {})) {
     collectRefs((a as any).images, ids);
     for (const e of ((a as any).expressions ?? [])) collectRefs(e?.images, ids);
+    for (const ad of ((a as any).addons ?? [])) {
+      const v = ad?.image;
+      if (typeof v === "string" && v.startsWith(ASSET_PREFIX)) {
+        const aid = v.slice(ASSET_PREFIX.length);
+        if (!assetCache.has(aid)) ids.add(aid);
+      }
+    }
   }
   return [...ids];
 }

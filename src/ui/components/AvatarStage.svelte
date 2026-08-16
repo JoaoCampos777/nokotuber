@@ -29,6 +29,7 @@
         intensity:  rule.intensity,
         isReacting: get(isReacting),
       },
+      addons:     get(project).addons,
     };
   };
 

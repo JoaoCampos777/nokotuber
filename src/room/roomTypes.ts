@@ -1,4 +1,5 @@
 import type { ExpressionImages } from "../project/expressionTypes";
+import type { Addon } from "../addons/addonTypes";
 
 /** Como o áudio de um participante é alimentado. */
 export type AudioBindingMode =
@@ -23,6 +24,7 @@ export interface RoomAvatar {
   expressions?: RoomExpression[];        // expressões nomeadas (Fase 2B)
   activeExpressionId?: string | null;    // expressão ativa (manual/hotkey)
   shoutExpressionId?: string | null;     // expressão exibida ao gritar
+  addons?: Addon[];                      // acessórios sobrepostos (Fase 3)
   // futuro: layers, states, animationPresets
 }
 

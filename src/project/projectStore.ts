@@ -4,6 +4,8 @@ import { createEmptyProject } from "./projectTypes";
 import { migrateProject } from "./migrateProject";
 import type { ViewSettings, ViewFilters } from "../view/viewTypes";
 import type { AvatarEffect, EffectParams } from "../effects/effectTypes";
+import type { Addon } from "../addons/addonTypes";
+import { defaultAddon } from "../addons/addonTypes";
 
 export type ImageSlot = keyof AvatarImages;
 
@@ -96,6 +98,22 @@ export function duplicateEffect(id: string): void {
   isDirty.set(true);
 }
 
+// ─── Add-ons (Fase 3) ────────────────────────────────────
+export function addProjectAddon(): string {
+  const ad = defaultAddon();
+  project.update((p) => ({ ...p, addons: [...(p.addons ?? []), ad], updatedAt: now() }));
+  isDirty.set(true);
+  return ad.id;
+}
+export function removeProjectAddon(id: string): void {
+  project.update((p) => ({ ...p, addons: (p.addons ?? []).filter((a) => a.id !== id), updatedAt: now() }));
+  isDirty.set(true);
+}
+export function updateProjectAddon(id: string, patch: Partial<Addon>): void {
+  project.update((p) => ({ ...p, addons: (p.addons ?? []).map((a) => (a.id === id ? { ...a, ...patch } : a)), updatedAt: now() }));
+  isDirty.set(true);
+}
+
 // ─── Projeto ─────────────────────────────────────────────
 export function newProject(): void {
   project.set(createEmptyProject());
@@ -121,12 +139,14 @@ export function loadProject(content: string, path: string): void {
 export function applyConfigSync(cfg: {
   view: ViewSettings; effects: AvatarEffect[];
   blinkConfig: BlinkConfig; audioConfig: AudioConfig; useDefaultAvatar: boolean;
+  addons?: Addon[];
 }): void {
   project.update((p) => ({
     ...p,
     view: cfg.view, effects: cfg.effects,
     blinkConfig: cfg.blinkConfig, audioConfig: cfg.audioConfig,
     useDefaultAvatar: cfg.useDefaultAvatar,
+    addons: Array.isArray(cfg.addons) ? cfg.addons : p.addons,
   }));
 }
 export function applyImagesSync(images: AvatarImages): void {

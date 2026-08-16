@@ -3,6 +3,8 @@ import type { RoomSettings, RoomParticipant, RoomAvatar, RoomExpression, AudioBi
 import { ROOM_CANVAS, ROOM_VERSION, ROOM_MAX_FUTURE } from "./roomTypes";
 import { emptyExpressionImages } from "../project/expressionTypes";
 import type { ExpressionImageSlot } from "../project/expressionTypes";
+import type { Addon } from "../addons/addonTypes";
+import { defaultAddon, normalizeAddons } from "../addons/addonTypes";
 
 const ROOM_KEY = "nokotuber:room:v1";
 
@@ -11,7 +13,7 @@ function uid(p: string): string {
 }
 
 function makeAvatar(id: string, name: string): RoomAvatar {
-  return { id, name, images: emptyExpressionImages(), expressions: [], activeExpressionId: null, shoutExpressionId: null };
+  return { id, name, images: emptyExpressionImages(), expressions: [], activeExpressionId: null, shoutExpressionId: null, addons: [] };
 }
 
 /** Normaliza um avatar salvo (tolerante a versões sem expressões). */
@@ -32,6 +34,7 @@ function normalizeAvatar(a: any): RoomAvatar {
     expressions,
     activeExpressionId: has(a?.activeExpressionId) ? a.activeExpressionId : null,
     shoutExpressionId: has(a?.shoutExpressionId) ? a.shoutExpressionId : null,
+    addons: normalizeAddons(a?.addons),
   };
 }
 
@@ -256,6 +259,22 @@ export function setActiveRoomExpression(avatarId: string, expId: string | null):
 }
 export function setShoutExpression(avatarId: string, expId: string | null): void {
   mapAvatar(avatarId, (a) => ({ ...a, shoutExpressionId: expId }));
+}
+
+// ─── Add-ons por avatar (Fase 3) ───
+function mapAddon(avatarId: string, addonId: string, fn: (ad: Addon) => Addon): void {
+  mapAvatar(avatarId, (a) => ({ ...a, addons: (a.addons ?? []).map((ad) => (ad.id === addonId ? fn(ad) : ad)) }));
+}
+export function addRoomAddon(avatarId: string, name = "Acessório"): string {
+  const ad = defaultAddon(name);
+  mapAvatar(avatarId, (a) => ({ ...a, addons: [...(a.addons ?? []), ad] }));
+  return ad.id;
+}
+export function removeRoomAddon(avatarId: string, addonId: string): void {
+  mapAvatar(avatarId, (a) => ({ ...a, addons: (a.addons ?? []).filter((ad) => ad.id !== addonId) }));
+}
+export function updateRoomAddon(avatarId: string, addonId: string, patch: Partial<Addon>): void {
+  mapAddon(avatarId, addonId, (ad) => ({ ...ad, ...patch }));
 }
 
 export function resetRoom(): void { room.set(defaultRoom()); }

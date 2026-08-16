@@ -2,6 +2,7 @@ import type { ViewSettings } from "../view/viewTypes";
 import { DEFAULT_VIEW_SETTINGS } from "../view/viewTypes";
 import type { AvatarEffect } from "../effects/effectTypes";
 import { DEFAULT_EFFECTS } from "../effects/effectTypes";
+import type { Addon } from "../addons/addonTypes";
 
 export interface AvatarImages {
   mouthClosed: string | null;
@@ -35,6 +36,7 @@ export interface PNGTuberProject {
   useDefaultAvatar: boolean;
   view:             ViewSettings;  // ← NOVO
   effects:          AvatarEffect[];// ← NOVO
+  addons:           Addon[];       // ← Fase 3 (acessórios)
   canvasWidth:      number;
   canvasHeight:     number;
 }
@@ -60,6 +62,7 @@ export function createEmptyProject(): PNGTuberProject {
     useDefaultAvatar: true,
     view:             { ...DEFAULT_VIEW_SETTINGS, filters: { ...DEFAULT_VIEW_SETTINGS.filters } },
     effects:          [...DEFAULT_EFFECTS],
+    addons:           [],
     canvasWidth:      1280,
     canvasHeight:     720,
   };

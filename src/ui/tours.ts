@@ -69,7 +69,8 @@ export const TOUR_ADVANCED: Tour = {
     { title: "Recursos avançados", body: "Aqui ficam recursos opcionais. Você não precisa deles para começar — use quando quiser." },
     { target: "characters", title: "Meus Personagens", body: "Salve seu avatar como um personagem para reutilizá-lo em outras cenas, sem reconfigurar tudo. (Abra a aba Avatar para ver.)" },
     { target: "characters", title: "Personagem padrão", body: "Marque um personagem como padrão (★) para o Nokotuber já abrir com ele. Também dá pra reabrir o último usado." },
-    { target: "simple-advanced", title: "Modo Avançado", body: "Ative o modo Avançado para ver efeitos e a reação de voz por personagem. Novos recursos avançados aparecerão aqui." },
+    { target: "addons", title: "Acessórios (add-ons)", body: "Adicione óculos, chapéus, coroas e overlays sobre o personagem — cada um com posição, escala e camada próprias. (Modo Avançado, aba Avatar.)" },
+    { target: "simple-advanced", title: "Modo Avançado", body: "Ative o modo Avançado para ver efeitos, reação de voz, expressões e acessórios por personagem." },
   ],
 };
 

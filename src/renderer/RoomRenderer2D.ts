@@ -1,5 +1,6 @@
 import { ROOM_CANVAS } from "../room/roomTypes";
 import type { RoomParticipant, RoomAvatar } from "../room/roomTypes";
+import type { Addon } from "../addons/addonTypes";
 import type { ExpressionImages } from "../project/expressionTypes";
 import type { ParticipantEffects, ActiveRoomReaction } from "../effects/participantEffects";
 import { resolveParticipantEffects, resolveReactionTransform, participantSeed } from "../effects/participantEffectResolver";
@@ -153,6 +154,9 @@ export class RoomRenderer2D {
       }
 
 
+      // Add-ons ATRÁS do personagem (zIndex < 0), sem o glow de fala.
+      if (avatar?.addons?.length) this.drawAddons(avatar.addons, p.scale, true);
+
       if (img) {
         const baseH = ROOM_CANVAS.height * 0.8;
         const fs = (baseH / img.naturalHeight) * p.scale;
@@ -164,11 +168,37 @@ export class RoomRenderer2D {
       }
       ctx.shadowBlur = 0;
       ctx.shadowColor = "transparent";
+
+      // Add-ons À FRENTE do personagem (zIndex >= 0).
+      if (avatar?.addons?.length) this.drawAddons(avatar.addons, p.scale, false);
       ctx.globalAlpha = 1;
     }
 
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /** Desenha os add-ons visíveis do avatar dentro da transform já aplicada. */
+  private drawAddons(addons: Addon[], pScale: number, behind: boolean): void {
+    const { ctx } = this;
+    const baseAlpha = ctx.globalAlpha;
+    const list = addons
+      .filter((a) => a.visible && a.image && (behind ? a.zIndex < 0 : a.zIndex >= 0))
+      .sort((a, b) => a.zIndex - b.zIndex);
+    for (const ad of list) {
+      const img = this.getImage(ad.image);
+      if (!img) continue;
+      ctx.save();
+      ctx.translate(ad.x * pScale, ad.y * pScale);
+      if (ad.rotation) ctx.rotate((ad.rotation * Math.PI) / 180);
+      if (ad.mirror) ctx.scale(-1, 1);
+      ctx.globalAlpha = Math.max(0, Math.min(1, baseAlpha * ad.opacity));
+      const w = img.naturalWidth  * ad.scale * pScale;
+      const h = img.naturalHeight * ad.scale * pScale;
+      ctx.drawImage(img, -w / 2, -h / 2, w, h);
+      ctx.restore();
+    }
+    ctx.globalAlpha = baseAlpha;
   }
 
   private drawPlaceholder(p: RoomParticipant): void {

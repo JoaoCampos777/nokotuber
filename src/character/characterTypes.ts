@@ -3,6 +3,7 @@ import type { ViewSettings } from "../view/viewTypes";
 import type { AvatarEffect } from "../effects/effectTypes";
 import type { ExpressionProjectState } from "../project/expressionTypes";
 import type { VoiceReactionRule } from "../audio/voiceReactionTypes";
+import type { Addon } from "../addons/addonTypes";
 
 /**
  * Um "personagem" reutilizável — o pacote completo que define um avatar,
@@ -44,8 +45,8 @@ export interface Character {
   expressions: ExpressionProjectState;
   voiceReaction: VoiceReactionRule;
 
+  addons?: Addon[];     // Fase 3 (Add-ons)
   // ─── Reservado para fases futuras (opcional → compat p/ frente) ───
-  addons?: unknown[];   // Fase 3 (Add-ons)
   mouth?: unknown;      // Fase 5 (Visemas / boca separada)
 
   meta?: CharacterMeta;

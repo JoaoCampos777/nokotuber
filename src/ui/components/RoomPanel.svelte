@@ -8,6 +8,7 @@
   import {
     room, updateParticipant, centerParticipant, resetParticipantTransform,
     setAvatarImage, clearAvatarImage, addParticipant, removeParticipant, moveParticipantLayer,
+    addRoomAddon, removeRoomAddon, updateRoomAddon,
   } from "../../room/roomStore";
   import { ROOM_CANVAS, ROOM_MAX_FUTURE } from "../../room/roomTypes";
   import type { ExpressionImageSlot } from "../../project/expressionTypes";
@@ -15,6 +16,7 @@
   import { setManualSpeaking } from "../../audio/manualSpeakingProvider";
   import ParticipantEffectsControls from "./ParticipantEffectsControls.svelte";
   import RoomExpressionsControls from "./RoomExpressionsControls.svelte";
+  import AddonControls from "./AddonControls.svelte";
   import CompanionHostPanel from "./CompanionHostPanel.svelte";
   import DiscordBindControls from "./DiscordBindControls.svelte";
   import { audioRouting, setParticipantSource, setMicMode, setMicTarget } from "../../audio/audioBindingStore";
@@ -67,6 +69,8 @@
   function toggleFx(id: string) { fxOpen = { ...fxOpen, [id]: !fxOpen[id] }; }
   let exOpen: Record<string, boolean> = {};
   function toggleEx(id: string) { exOpen = { ...exOpen, [id]: !exOpen[id] }; }
+  let adOpen: Record<string, boolean> = {};
+  function toggleAd(id: string) { adOpen = { ...adOpen, [id]: !adOpen[id] }; }
   function othersOf(id: string) {
     return $room.participants.filter((x) => x.id !== id).map((x) => ({ value: x.id, label: x.name }));
   }
@@ -211,6 +215,15 @@
                 </button>
                 {#if exOpen[p.id]}
                   <RoomExpressionsControls participantId={p.id} avatarId={p.avatarId} />
+                {/if}
+                <button class="fx-toggle" on:click={() => toggleAd(p.id)}>
+                  {adOpen[p.id] ? "▼" : "▶"} Acessórios (add-ons)
+                </button>
+                {#if adOpen[p.id]}
+                  <AddonControls addons={av?.addons ?? []}
+                    onAdd={() => addRoomAddon(p.avatarId)}
+                    onRemove={(id) => removeRoomAddon(p.avatarId, id)}
+                    onUpdate={(id, patch) => updateRoomAddon(p.avatarId, id, patch)} />
                 {/if}
               {/if}
             </div>
