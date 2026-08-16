@@ -1,9 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { APP_VERSION } from "../config/brand";
 
 export async function getAppVersion(): Promise<string> {
   try { return await invoke<string>("app_version"); }
-  catch { return "0.1.0"; }
+  catch { return APP_VERSION; }
 }
 
 /**

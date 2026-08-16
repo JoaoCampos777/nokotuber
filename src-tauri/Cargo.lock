@@ -2665,7 +2665,7 @@ dependencies = [
 
 [[package]]
 name = "pngtuber-studio"
-version = "0.2.2"
+version = "0.4.0"
 dependencies = [
  "base64 0.22.1",
  "serde",

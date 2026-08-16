@@ -41,12 +41,12 @@
   import { avatarState, currentImageUrl, startAvatarController } from "../avatar/avatarController";
   import { emit, listen } from "@tauri-apps/api/event";
   import { get } from "svelte/store";
-  import { APP_NAME } from "../config/brand";
+  import { APP_NAME, APP_VERSION } from "../config/brand";
   import { APP_ICON_URL, DEFAULT_AVATAR } from "../config/defaultAvatar";
   import { initHotkeyManager } from "../hotkeys/hotkeyManager";
   import { expressionState } from "../project/expressionStore";
 
-  let appVersion    = "0.1.0";
+  let appVersion    = APP_VERSION;
   let openingPerf   = false;
   let perfOpen      = false;
   let importingSlot: ImageSlot | null = null;

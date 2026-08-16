@@ -8,8 +8,14 @@
     APP_PARTNERSHIP,
   } from "../../config/brand";
   import { APP_ICON_URL, CREATOR_AVATAR_URL } from "../../config/defaultAvatar";
+  import { getAppVersion } from "../../core/desktop";
+  import { onMount } from "svelte";
 
   export let onClose: () => void;
+
+  // Versão real vem do Tauri (tauri.conf.json); APP_VERSION é só fallback.
+  let displayVersion = APP_VERSION;
+  onMount(async () => { try { displayVersion = await getAppVersion(); } catch {} });
 
   function handleEmailClick() {
     window.location.href = `mailto:${APP_CONTACT.email}?subject=Contato%20-%20${APP_NAME}`;
@@ -39,7 +45,7 @@
       <div class="header-text">
         <h2 id="about-title">{APP_NAME}</h2>
         <p class="tagline">{APP_TAGLINE}</p>
-        <span class="version">v{APP_VERSION}</span>
+        <span class="version">v{displayVersion}</span>
       </div>
     </div>
 

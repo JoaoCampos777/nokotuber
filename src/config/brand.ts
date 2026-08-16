@@ -5,7 +5,12 @@
 
 export const APP_NAME    = "Nokotuber";
 export const APP_TAGLINE = "Ferramenta de PNGTuber para streamers";
-export const APP_VERSION = "0.2.2";
+/**
+ * Fallback de versão exibido só quando o app_version do Tauri não está disponível
+ * (ex.: navegador/dev). A versão real vem de tauri.conf.json via o comando
+ * `app_version` (getAppVersion). Mantenha em sincronia com tauri.conf/Cargo.
+ */
+export const APP_VERSION = "0.4.0";
 
 export const APP_CREATOR = {
   name: "Campos",
