@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    Merged into the macOS app bundle by Tauri v2 (src-tauri/Info.plist).
+    WKWebView só concede getUserMedia (microfone) se esta chave existir; sem ela,
+    a captura falha silenciosamente no Mac. Windows ignora este arquivo.
+  -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>O Nokotuber usa o microfone para animar seu avatar quando você fala.</string>
+</dict>
+</plist>
