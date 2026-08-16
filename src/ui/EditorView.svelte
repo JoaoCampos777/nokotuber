@@ -14,6 +14,8 @@
   import CharacterLibraryPanel from "./components/CharacterLibraryPanel.svelte";
   import AddonControls from "./components/AddonControls.svelte";
   import MouthControls from "./components/MouthControls.svelte";
+  import StorePanel from "./components/StorePanel.svelte";
+  import { openStore } from "../store/storeUi";
   import { characters, applyCharacter, getCharacter } from "../character/characterLibraryStore";
   import { resolveStartupCharacterId } from "../character/startupPrefsStore";
   import { uiPrefs } from "./uiPrefsStore";
@@ -319,6 +321,7 @@
       <button class="btn btn-ghost" on:click={handleOpen}>Abrir</button>
       <button class="btn btn-ghost" disabled={saveDisabled} on:click={handleSave}>Salvar</button>
       <button class="btn btn-ghost" on:click={handleExport}>Exportar</button>
+      <button class="btn btn-ghost" on:click={openStore} title="Loja de acessórios" data-tour="store">🛒 Loja</button>
       <button class="btn btn-ghost" on:click={openTourMenu} title="Abrir o tutorial">❓ Tutorial</button>
       <button class="btn btn-ghost btn-icon-only" on:click={() => showAbout = true} title="Sobre">ℹ</button>
       <button class="btn btn-ghost" class:btn-active={$room.enabled} on:click={handleRoomToggle} title="Alternar modo sala" data-tour="mode-toggle">
@@ -475,6 +478,7 @@
 
 {#if toastMsg}<div class="toast toast-{toastType}">{toastMsg}</div>{/if}
 {#if showAbout}<AboutModal onClose={() => showAbout = false} />{/if}
+<StorePanel />
 <OnboardingTour />
 
 <style>

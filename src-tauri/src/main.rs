@@ -45,6 +45,15 @@ fn close_performance_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Abre uma URL no navegador padrão do sistema (usado pela Loja para o checkout).
+#[tauri::command]
+fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| format!("Falha ao abrir URL: {e}"))
+}
+
 #[tauri::command]
 fn read_image_as_base64(path: String) -> Result<String, String> {
     let bytes = fs::read(&path).map_err(|e| format!("Erro ao ler arquivo: {e}"))?;
@@ -159,6 +168,7 @@ pub fn run() {
             app_version,
             toggle_performance_window,
             close_performance_window,
+            open_external_url,
             read_image_as_base64,
             save_project_file,
             open_project_file,

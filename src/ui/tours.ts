@@ -64,9 +64,10 @@ export const TOUR_COMPANION: Tour = {
 export const TOUR_ADVANCED: Tour = {
   id: "advanced",
   name: "Recursos avançados",
-  desc: "Personagens salvos e outros recursos opcionais.",
+  desc: "Personagens salvos, loja e outros recursos opcionais.",
   steps: [
     { title: "Recursos avançados", body: "Aqui ficam recursos opcionais. Você não precisa deles para começar — use quando quiser." },
+    { target: "store", title: "Loja de Add-ons", body: "Na Loja você encontra acessórios extras para seus personagens. Alguns são gratuitos e outros podem ser adquiridos separadamente. Depois da compra, ficam em Minha Biblioteca — e você ainda pode importar seus próprios acessórios de graça." },
     { target: "characters", title: "Meus Personagens", body: "Salve seu avatar como um personagem para reutilizá-lo em outras cenas, sem reconfigurar tudo. (Abra a aba Avatar para ver.)" },
     { target: "characters", title: "Personagem padrão", body: "Marque um personagem como padrão (★) para o Nokotuber já abrir com ele. Também dá pra reabrir o último usado." },
     { target: "addons", title: "Acessórios (add-ons)", body: "Adicione óculos, chapéus, coroas e overlays sobre o personagem — cada um com posição, escala e camada próprias. (Modo Avançado, aba Avatar.)" },
