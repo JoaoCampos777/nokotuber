@@ -7,7 +7,8 @@
     buy, ownsProduct, downloadProductAsset,
     storeApiBase, setStoreApiBase, StoreError, type StoreProductCard,
   } from "../../store/storeClient";
-  import { addProjectAddon, updateProjectAddon } from "../../project/projectStore";
+  import { get } from "svelte/store";
+  import { project, addProjectAddon, updateProjectAddon } from "../../project/projectStore";
   import { uiPrefs } from "../uiPrefsStore";
 
   let tab: "loja" | "lib" = "loja";
@@ -32,7 +33,13 @@
       invalid_credentials: "E-mail ou senha incorretos.", email_taken: "Este e-mail já tem conta.",
       already_owned: "Você já possui este item.", product_not_found: "Produto indisponível.",
       not_entitled: "Item não disponível nesta conta.", checkout_failed: "Falha ao iniciar o pagamento. Tente de novo.",
-      unauthorized: "Sessão expirada. Entre novamente.",
+      asset_unavailable: "O arquivo deste acessório não está disponível.",
+      file_missing: "O arquivo deste acessório não está disponível.",
+      download_failed: "Não foi possível baixar este acessório.",
+      read_error: "Não foi possível processar o acessório.",
+      invalid_or_expired: "O link do acessório expirou. Tente de novo.",
+      unauthorized: "Sua sessão expirou. Entre novamente.",
+      invalid_refresh: "Sua sessão expirou. Entre novamente.",
     };
     return map[code] ?? "Ocorreu um erro. Tente novamente.";
   }
@@ -74,14 +81,21 @@
     busy = true; try { await loadLibrary(); say("Compras atualizadas.", "ok"); } catch (e) { say(errText(e), "error"); } finally { busy = false; }
   }
   async function addToCharacter(p: StoreProductCard) {
+    if (get(project).addons?.some((a) => a.productId === p.id)) { say(`"${p.name}" já está no personagem.`, "info"); return; }
     busy = true; say("");
+    console.log("[store] Add to character productId=", p.id);
     try {
-      const { dataUrl, version } = await downloadProductAsset(p.id);
+      const { dataUrl, version } = await downloadProductAsset(p.id, p.version);
+      console.log("[store] creating marketplace addon");
       const id = addProjectAddon();
-      updateProjectAddon(id, { name: p.name, image: dataUrl, source: "marketplace", productId: p.id, author: p.author, version });
+      updateProjectAddon(id, { name: p.name, image: dataUrl, source: "marketplace", productId: p.id, author: p.author, version, visible: true });
+      console.log("[store] addon inserted into character", id);
       say(`"${p.name}" adicionado ao personagem (aba Avatar → Acessórios).`, "ok");
-    } catch (e) { say(errText(e), "error"); }
-    finally { busy = false; }
+    } catch (e) {
+      console.error("[store] Failed to add marketplace addon:", e);
+      const t = errText(e);
+      say(t === "Ocorreu um erro. Tente novamente." ? "Não foi possível adicionar o acessório ao personagem." : t, "error");
+    } finally { busy = false; }
   }
   function price(p: StoreProductCard): string {
     return p.priceCents <= 0 ? "Grátis" : (p.priceCents / 100).toLocaleString("pt-BR", { style: "currency", currency: p.currency || "BRL" });

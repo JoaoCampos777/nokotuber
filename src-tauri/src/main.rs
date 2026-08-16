@@ -54,6 +54,39 @@ fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
         .map_err(|e| format!("Falha ao abrir URL: {e}"))
 }
 
+/// Só permite [A-Za-z0-9._-] em ids/versões usados como caminho (anti path traversal).
+fn safe_segment(s: &str) -> String {
+    s.chars().map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_' { c } else { '_' }).collect()
+}
+
+fn marketplace_asset_path(app: &AppHandle, product_id: &str, version: &str) -> Result<std::path::PathBuf, String> {
+    let base = app.path().app_data_dir().map_err(|e| format!("app_data_dir: {e}"))?;
+    Ok(base.join("marketplace").join(safe_segment(product_id)).join(safe_segment(version)).join("addon.png"))
+}
+
+/// Cache local de asset de marketplace já baixado. Retorna data URL, ou null se não houver.
+#[tauri::command]
+fn read_marketplace_asset(app: AppHandle, product_id: String, version: String) -> Option<String> {
+    let p = marketplace_asset_path(&app, &product_id, &version).ok()?;
+    let bytes = fs::read(&p).ok()?;
+    Some(format!("data:image/png;base64,{}", general_purpose::STANDARD.encode(&bytes)))
+}
+
+/// Grava um asset de marketplace no diretório do app (não em localStorage).
+#[tauri::command]
+fn write_marketplace_asset(app: AppHandle, product_id: String, version: String, data_url: String) -> Result<(), String> {
+    let comma = data_url.find(',').ok_or_else(|| "data URL inválida".to_string())?;
+    let bytes = general_purpose::STANDARD
+        .decode(data_url[(comma + 1)..].as_bytes())
+        .map_err(|e| format!("base64: {e}"))?;
+    let p = marketplace_asset_path(&app, &product_id, &version)?;
+    if let Some(parent) = p.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
+    }
+    fs::write(&p, bytes).map_err(|e| format!("write: {e}"))?;
+    Ok(())
+}
+
 #[tauri::command]
 fn read_image_as_base64(path: String) -> Result<String, String> {
     let bytes = fs::read(&path).map_err(|e| format!("Erro ao ler arquivo: {e}"))?;
@@ -169,6 +202,8 @@ pub fn run() {
             toggle_performance_window,
             close_performance_window,
             open_external_url,
+            read_marketplace_asset,
+            write_marketplace_asset,
             read_image_as_base64,
             save_project_file,
             open_project_file,

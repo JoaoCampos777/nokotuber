@@ -132,11 +132,28 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** Baixa o arquivo do produto (verifica entitlement no backend) e retorna data URL. */
-export async function downloadProductAsset(productId: string): Promise<{ dataUrl: string; version: string }> {
+/**
+ * Baixa o arquivo do produto (verifica entitlement no backend) e retorna data URL.
+ * Usa cache no diretório do app (não localStorage) para não rebaixar toda vez.
+ */
+export async function downloadProductAsset(productId: string, version?: string): Promise<{ dataUrl: string; version: string }> {
+  // 1) cache local (diretório do app) — evita rebaixar
+  if (version) {
+    try {
+      const cached = await invoke<string | null>("read_marketplace_asset", { productId, version });
+      if (cached) { console.log("[store] asset cache hit", productId, version); return { dataUrl: cached, version }; }
+    } catch { /* fora do Tauri / sem cache — segue para download */ }
+  }
+  console.log("[store] requesting authorized download", productId);
   const meta = await request<{ downloadUrl: string; version: string }>(`/library/product/${productId}/download`, { auth: true });
-  const res = await fetch(meta.downloadUrl);
+  console.log("[store] entitlement verified; downloading asset");
+  let res: Response;
+  try { res = await fetch(meta.downloadUrl); } catch { throw new StoreError(0, "download_failed"); }
   if (!res.ok) throw new StoreError(res.status, "download_failed");
   const dataUrl = await blobToDataUrl(await res.blob());
+  console.log("[store] asset downloaded", productId, meta.version);
+  // 2) grava no cache do app (best-effort)
+  try { await invoke("write_marketplace_asset", { productId, version: meta.version, dataUrl }); console.log("[store] asset cached to app dir"); }
+  catch { /* cache é best-effort */ }
   return { dataUrl, version: meta.version };
 }
