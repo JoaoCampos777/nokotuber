@@ -6,6 +6,7 @@ import type { ViewSettings, ViewFilters } from "../view/viewTypes";
 import type { AvatarEffect, EffectParams } from "../effects/effectTypes";
 import type { Addon } from "../addons/addonTypes";
 import { defaultAddon } from "../addons/addonTypes";
+import type { MouthConfig, Viseme } from "../mouth/mouthTypes";
 
 export type ImageSlot = keyof AvatarImages;
 
@@ -114,6 +115,24 @@ export function updateProjectAddon(id: string, patch: Partial<Addon>): void {
   isDirty.set(true);
 }
 
+// ─── Boca / visemas (Fase 5/6) ───────────────────────────
+export function updateMouth(patch: Partial<MouthConfig>): void {
+  project.update((p) => ({ ...p, mouth: { ...p.mouth, ...patch }, updatedAt: now() }));
+  isDirty.set(true);
+}
+export function setVisemeImage(v: Viseme, url: string): void {
+  project.update((p) => ({ ...p, mouth: { ...p.mouth, visemes: { ...p.mouth.visemes, [v]: url } }, updatedAt: now() }));
+  isDirty.set(true);
+}
+export function clearVisemeImage(v: Viseme): void {
+  project.update((p) => ({ ...p, mouth: { ...p.mouth, visemes: { ...p.mouth.visemes, [v]: null } }, updatedAt: now() }));
+  isDirty.set(true);
+}
+/** Seletor manual/preview: NÃO marca dirty (é estado de exibição). */
+export function setManualViseme(v: Viseme): void {
+  project.update((p) => ({ ...p, mouth: { ...p.mouth, manualViseme: v } }));
+}
+
 // ─── Projeto ─────────────────────────────────────────────
 export function newProject(): void {
   project.set(createEmptyProject());
@@ -139,7 +158,7 @@ export function loadProject(content: string, path: string): void {
 export function applyConfigSync(cfg: {
   view: ViewSettings; effects: AvatarEffect[];
   blinkConfig: BlinkConfig; audioConfig: AudioConfig; useDefaultAvatar: boolean;
-  addons?: Addon[];
+  addons?: Addon[]; mouth?: MouthConfig;
 }): void {
   project.update((p) => ({
     ...p,
@@ -147,6 +166,7 @@ export function applyConfigSync(cfg: {
     blinkConfig: cfg.blinkConfig, audioConfig: cfg.audioConfig,
     useDefaultAvatar: cfg.useDefaultAvatar,
     addons: Array.isArray(cfg.addons) ? cfg.addons : p.addons,
+    mouth: cfg.mouth ?? p.mouth,
   }));
 }
 export function applyImagesSync(images: AvatarImages): void {

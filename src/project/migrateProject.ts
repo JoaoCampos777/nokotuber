@@ -3,6 +3,7 @@ import { createEmptyProject, PROJECT_SCHEMA_VERSION } from "./projectTypes";
 import type { ViewSettings } from "../view/viewTypes";
 import type { AvatarEffect, EffectType, Trigger, Transition, WaveAxis } from "../effects/effectTypes";
 import { normalizeAddons } from "../addons/addonTypes";
+import { normalizeMouthConfig } from "../mouth/mouthTypes";
 
 const VALID_TYPES:       EffectType[]  = ["darken", "jump", "randomMove", "waveMove", "waveRotate"];
 const VALID_TRIGGERS:    Trigger[]     = ["always", "idle", "talking", "blink", "happy", "angry", "sad", "surprised"];
@@ -52,6 +53,9 @@ export function migrateProject(raw: any): PNGTuberProject {
 
   // addons (Fase 3)
   p.addons = normalizeAddons(raw.addons);
+
+  // mouth / visemas (Fase 5/6)
+  p.mouth = normalizeMouthConfig(raw.mouth);
 
   p.projectVersion   = PROJECT_SCHEMA_VERSION;
   p.useDefaultAvatar = typeof raw.useDefaultAvatar === "boolean" ? raw.useDefaultAvatar : base.useDefaultAvatar;

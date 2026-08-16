@@ -7,6 +7,7 @@ import { expressionState, applyExpressions } from "../project/expressionStore";
 import { voiceReactionRule, audioThreshold } from "../audio/audioStore";
 import { defaultReactionRule } from "../audio/voiceReactionTypes";
 import { normalizeAddons } from "../addons/addonTypes";
+import { normalizeMouthConfig } from "../mouth/mouthTypes";
 import { setLastCharacter, forgetCharacter } from "./startupPrefsStore";
 import { saveTextFileAs, openTextFile } from "../core/desktop";
 
@@ -58,7 +59,7 @@ function normalizeCharacter(raw: any): Character {
       ? { ...defaultReactionRule(), ...raw.voiceReaction }
       : defaultReactionRule(),
     addons: normalizeAddons(raw?.addons),
-    mouth: raw?.mouth ?? undefined,
+    mouth: normalizeMouthConfig(raw?.mouth),
     meta: raw?.meta && typeof raw.meta === "object" ? raw.meta : { source: "local" },
   };
 }
@@ -105,6 +106,7 @@ export function captureCurrentCharacter(name: string): Character {
     expressions: clone(get(expressionState)),
     voiceReaction: clone(get(voiceReactionRule)),
     addons: clone(p.addons ?? []),
+    mouth: clone(p.mouth),
     meta: { source: "local" },
   };
 }
@@ -164,6 +166,7 @@ export function applyCharacter(id: string, opts?: { markDirty?: boolean }): bool
     view: clone(c.view),
     effects: clone(c.effects),
     addons: clone(c.addons ?? []),
+    mouth: normalizeMouthConfig(c.mouth),
     useDefaultAvatar: c.useDefaultAvatar,
     updatedAt: nowIso(),
   }));

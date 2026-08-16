@@ -30,6 +30,14 @@
         isReacting: get(isReacting),
       },
       addons:     get(project).addons,
+      mouth:      (() => {
+        const m = get(project).mouth;
+        if (m?.mode === "visemes" && m.kind === "separated") {
+          return { image: m.visemes[m.manualViseme] ?? m.visemes.rest ?? null,
+                   x: m.transform.x, y: m.transform.y, scale: m.transform.scale, rotation: m.transform.rotation };
+        }
+        return null;
+      })(),
     };
   };
 

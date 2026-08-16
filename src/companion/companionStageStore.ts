@@ -31,6 +31,9 @@ function resolveSnapshot(lite: RoomSnapshotMessage): RoomSnapshotMessage {
     if (Array.isArray((a as any).addons)) {
       av.addons = (a as any).addons.map((ad: any) => ({ ...ad, image: resolveImg(ad?.image ?? null) }));
     }
+    if ((a as any).mouth?.visemes) {
+      av.mouth = { ...(a as any).mouth, visemes: resolveMap((a as any).mouth.visemes) };
+    }
     avatars[id] = av;
   }
   return { ...lite, avatars };
@@ -55,6 +58,7 @@ function missingAssetIds(lite: RoomSnapshotMessage): string[] {
         if (!assetCache.has(aid)) ids.add(aid);
       }
     }
+    collectRefs((a as any).mouth?.visemes, ids);
   }
   return [...ids];
 }

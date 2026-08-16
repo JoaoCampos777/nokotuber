@@ -83,8 +83,21 @@ export function buildRoomSnapshot(): RoomSnapshotMessage {
         }
         return { ...ad, image: ref };
       });
+      let mouth = a.mouth;
+      if (mouth) {
+        const visemes: any = {};
+        for (const [k, v] of Object.entries(mouth.visemes)) {
+          const ref = toAssetRef(v);
+          visemes[k] = ref;
+          if (typeof ref === "string" && ref.startsWith(ASSET_PREFIX)) {
+            const id = ref.slice(ASSET_PREFIX.length);
+            if (!requiredAssets.includes(id)) requiredAssets.push(id);
+          }
+        }
+        mouth = { ...mouth, visemes };
+      }
       avatars[a.id] = {
-        id: a.id, name: a.name, images, expressions, addons,
+        id: a.id, name: a.name, images, expressions, addons, mouth,
         activeExpressionId: a.activeExpressionId ?? null,
         shoutExpressionId: a.shoutExpressionId ?? null,
       };

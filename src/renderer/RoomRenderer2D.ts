@@ -1,6 +1,7 @@
 import { ROOM_CANVAS } from "../room/roomTypes";
 import type { RoomParticipant, RoomAvatar } from "../room/roomTypes";
 import type { Addon } from "../addons/addonTypes";
+import type { MouthConfig } from "../mouth/mouthTypes";
 import type { ExpressionImages } from "../project/expressionTypes";
 import type { ParticipantEffects, ActiveRoomReaction } from "../effects/participantEffects";
 import { resolveParticipantEffects, resolveReactionTransform, participantSeed } from "../effects/participantEffectResolver";
@@ -129,7 +130,16 @@ export class RoomRenderer2D {
       const talking = p.isSpeaking;   // o renderer lê SOMENTE isSpeaking (fonte vem do router)
       const blinking = this.isBlinking(p.id, now);
       const rawReaction = s.reactions?.[p.id];
-      const url = avatar ? pickImage(resolveAvatarImages(avatar, rawReaction), talking, blinking) : null;
+      let url: string | null = null;
+      if (avatar) {
+        const m = avatar.mouth;
+        if (m && m.mode === "visemes" && m.kind === "full") {
+          // Avatar completo por viseme: a imagem inteira é o viseme atual (manual).
+          url = m.visemes[m.manualViseme] ?? m.visemes.rest ?? pickImage(resolveAvatarImages(avatar, rawReaction), talking, blinking);
+        } else {
+          url = pickImage(resolveAvatarImages(avatar, rawReaction), talking, blinking);
+        }
+      }
       const img = this.getImage(url);
 
       const seed = participantSeed(p.id);
@@ -169,6 +179,9 @@ export class RoomRenderer2D {
       ctx.shadowBlur = 0;
       ctx.shadowColor = "transparent";
 
+      // Boca separada (visemas "separated") sobre a base, antes dos add-ons frontais.
+      if (avatar?.mouth) this.drawMouthLayer(avatar.mouth, p.scale);
+
       // Add-ons À FRENTE do personagem (zIndex >= 0).
       if (avatar?.addons?.length) this.drawAddons(avatar.addons, p.scale, false);
       ctx.globalAlpha = 1;
@@ -198,6 +211,24 @@ export class RoomRenderer2D {
       ctx.drawImage(img, -w / 2, -h / 2, w, h);
       ctx.restore();
     }
+    ctx.globalAlpha = baseAlpha;
+  }
+
+  /** Camada da boca (viseme atual) no modo "separated", dentro da transform do avatar. */
+  private drawMouthLayer(m: MouthConfig, pScale: number): void {
+    if (!m || m.mode !== "visemes" || m.kind !== "separated") return;
+    const url = m.visemes[m.manualViseme] ?? m.visemes.rest ?? null;
+    const img = this.getImage(url);
+    if (!img) return;
+    const { ctx } = this;
+    const baseAlpha = ctx.globalAlpha;
+    ctx.save();
+    ctx.translate(m.transform.x * pScale, m.transform.y * pScale);
+    if (m.transform.rotation) ctx.rotate((m.transform.rotation * Math.PI) / 180);
+    const w = img.naturalWidth  * m.transform.scale * pScale;
+    const h = img.naturalHeight * m.transform.scale * pScale;
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.restore();
     ctx.globalAlpha = baseAlpha;
   }
 

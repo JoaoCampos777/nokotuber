@@ -9,6 +9,7 @@
     room, updateParticipant, centerParticipant, resetParticipantTransform,
     setAvatarImage, clearAvatarImage, addParticipant, removeParticipant, moveParticipantLayer,
     addRoomAddon, removeRoomAddon, updateRoomAddon,
+    updateAvatarMouth, setAvatarVisemeImage, clearAvatarVisemeImage,
   } from "../../room/roomStore";
   import { ROOM_CANVAS, ROOM_MAX_FUTURE } from "../../room/roomTypes";
   import type { ExpressionImageSlot } from "../../project/expressionTypes";
@@ -17,7 +18,9 @@
   import ParticipantEffectsControls from "./ParticipantEffectsControls.svelte";
   import RoomExpressionsControls from "./RoomExpressionsControls.svelte";
   import AddonControls from "./AddonControls.svelte";
+  import MouthControls from "./MouthControls.svelte";
   import CompanionHostPanel from "./CompanionHostPanel.svelte";
+  import { defaultMouthConfig } from "../../mouth/mouthTypes";
   import DiscordBindControls from "./DiscordBindControls.svelte";
   import { audioRouting, setParticipantSource, setMicMode, setMicTarget } from "../../audio/audioBindingStore";
   import type { AudioBindingMode } from "../../audio/speakingTypes";
@@ -71,6 +74,8 @@
   function toggleEx(id: string) { exOpen = { ...exOpen, [id]: !exOpen[id] }; }
   let adOpen: Record<string, boolean> = {};
   function toggleAd(id: string) { adOpen = { ...adOpen, [id]: !adOpen[id] }; }
+  let moOpen: Record<string, boolean> = {};
+  function toggleMo(id: string) { moOpen = { ...moOpen, [id]: !moOpen[id] }; }
   function othersOf(id: string) {
     return $room.participants.filter((x) => x.id !== id).map((x) => ({ value: x.id, label: x.name }));
   }
@@ -224,6 +229,15 @@
                     onAdd={() => addRoomAddon(p.avatarId)}
                     onRemove={(id) => removeRoomAddon(p.avatarId, id)}
                     onUpdate={(id, patch) => updateRoomAddon(p.avatarId, id, patch)} />
+                {/if}
+                <button class="fx-toggle" on:click={() => toggleMo(p.id)}>
+                  {moOpen[p.id] ? "▼" : "▶"} Boca / Visemas
+                </button>
+                {#if moOpen[p.id]}
+                  <MouthControls mouth={av?.mouth ?? defaultMouthConfig()}
+                    onUpdate={(patch) => updateAvatarMouth(p.avatarId, patch)}
+                    onSetImage={(v, url) => setAvatarVisemeImage(p.avatarId, v, url)}
+                    onClearImage={(v) => clearAvatarVisemeImage(p.avatarId, v)} />
                 {/if}
               {/if}
             </div>

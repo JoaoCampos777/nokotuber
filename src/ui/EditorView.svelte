@@ -13,6 +13,7 @@
   import SectionAccordion from "./components/SectionAccordion.svelte";
   import CharacterLibraryPanel from "./components/CharacterLibraryPanel.svelte";
   import AddonControls from "./components/AddonControls.svelte";
+  import MouthControls from "./components/MouthControls.svelte";
   import { characters, applyCharacter, getCharacter } from "../character/characterLibraryStore";
   import { resolveStartupCharacterId } from "../character/startupPrefsStore";
   import { uiPrefs } from "./uiPrefsStore";
@@ -32,6 +33,7 @@
     setImage, clearImage, updateBlinkConfig,
     newProject, toggleDefaultAvatar, loadProject, type ImageSlot,
     addProjectAddon, removeProjectAddon, updateProjectAddon,
+    updateMouth, setVisemeImage, clearVisemeImage,
   } from "../project/projectStore";
   import { audioLevel, isTalking, audioThreshold, isAudioActive, startAudioCapture, stopAudioCapture, simulateReaction, voiceReactionRule, isReacting, activeVoiceReactions } from "../audio/audioStore";
   import { avatarState, currentImageUrl, startAvatarController } from "../avatar/avatarController";
@@ -148,6 +150,7 @@
       blinkConfig: p.blinkConfig, audioConfig: p.audioConfig,
       useDefaultAvatar: p.useDefaultAvatar,
       addons: p.addons,
+      mouth: p.mouth,
     }).catch(() => {});
   }
   function emitImages(force = false) {
@@ -204,7 +207,7 @@
   function emitReactionRule()  { emit("nokotuber:reaction-rule", get(voiceReactionRule)).catch(() => {}); }
   function emitReactionState() { emit("nokotuber:reaction-state", { isReacting: get(isReacting), types: get(activeVoiceReactions) }).catch(() => {}); }
 
-  $: if (inTauri && perfOpen) { $project.view; $project.effects; $project.blinkConfig; $project.audioConfig; $project.useDefaultAvatar; $project.addons; emitConfig(); }
+  $: if (inTauri && perfOpen) { $project.view; $project.effects; $project.blinkConfig; $project.audioConfig; $project.useDefaultAvatar; $project.addons; $project.mouth; emitConfig(); }
   $: if (inTauri && perfOpen) { if ($project.images !== lastImagesRef) { lastImagesRef = $project.images; emit("nokotuber:images", $project.images).catch(() => {}); } }
   $: if (inTauri) emit("avatar:image-changed", $currentImageUrl).catch(() => {});
   $: if (inTauri && perfOpen && $expressionState) emitExpression();
@@ -400,6 +403,12 @@
             <SectionAccordion title="Acessórios (add-ons)" storageKey="avatar-addons" open={false} badge={String($project.addons?.length ?? 0)}>
               <AddonControls addons={$project.addons ?? []}
                 onAdd={addProjectAddon} onRemove={removeProjectAddon} onUpdate={updateProjectAddon} />
+            </SectionAccordion>
+          </div>
+          <div class="char-lib" data-tour="visemes">
+            <SectionAccordion title="Boca / Visemas" storageKey="avatar-mouth" open={false} badge={$project.mouth?.mode === "visemes" ? "ativo" : null}>
+              <MouthControls mouth={$project.mouth}
+                onUpdate={updateMouth} onSetImage={setVisemeImage} onClearImage={clearVisemeImage} />
             </SectionAccordion>
           </div>
         {/if}

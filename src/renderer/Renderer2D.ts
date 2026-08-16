@@ -22,6 +22,8 @@ export interface FrameInput {
   } | null;
   /** Acessórios sobrepostos (Fase 3). */
   addons?: Addon[];
+  /** Boca separada (modo visemas "separated"): imagem já resolvida + transform. */
+  mouth?: { image: string | null; x: number; y: number; scale: number; rotation: number } | null;
 }
 
 export interface RendererOptions {
@@ -228,6 +230,23 @@ export class Renderer2D {
     if (fx.rotation || vrRot) ctx.rotate(fx.rotation + vrRot);
     ctx.drawImage(img, -w / 2, -h / 2, w, h);
     ctx.restore();
+
+    // Boca separada (visemas "separated"): camada da boca sobre a base.
+    if (s.mouth?.image) {
+      const img = this.getCachedImage(s.mouth.image);
+      if (img) {
+        ctx.save();
+        ctx.globalAlpha = fx.alpha;
+        ctx.translate(cx, cy);
+        if (avatarRot) ctx.rotate(avatarRot);
+        ctx.translate(s.mouth.x * refScale, s.mouth.y * refScale);
+        if (s.mouth.rotation) ctx.rotate((s.mouth.rotation * Math.PI) / 180);
+        const mw = img.naturalWidth  * s.mouth.scale * refScale;
+        const mh = img.naturalHeight * s.mouth.scale * refScale;
+        ctx.drawImage(img, -mw / 2, -mh / 2, mw, mh);
+        ctx.restore();
+      }
+    }
 
     // Add-ons À FRENTE do personagem (zIndex >= 0).
     if (addons.length) this.drawSoloAddons(addons, false, cx, cy, avatarRot, refScale, fx.alpha);

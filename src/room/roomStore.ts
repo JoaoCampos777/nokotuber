@@ -5,6 +5,8 @@ import { emptyExpressionImages } from "../project/expressionTypes";
 import type { ExpressionImageSlot } from "../project/expressionTypes";
 import type { Addon } from "../addons/addonTypes";
 import { defaultAddon, normalizeAddons } from "../addons/addonTypes";
+import type { MouthConfig, Viseme } from "../mouth/mouthTypes";
+import { defaultMouthConfig, normalizeMouthConfig } from "../mouth/mouthTypes";
 
 const ROOM_KEY = "nokotuber:room:v1";
 
@@ -13,7 +15,7 @@ function uid(p: string): string {
 }
 
 function makeAvatar(id: string, name: string): RoomAvatar {
-  return { id, name, images: emptyExpressionImages(), expressions: [], activeExpressionId: null, shoutExpressionId: null, addons: [] };
+  return { id, name, images: emptyExpressionImages(), expressions: [], activeExpressionId: null, shoutExpressionId: null, addons: [], mouth: defaultMouthConfig() };
 }
 
 /** Normaliza um avatar salvo (tolerante a versões sem expressões). */
@@ -35,6 +37,7 @@ function normalizeAvatar(a: any): RoomAvatar {
     activeExpressionId: has(a?.activeExpressionId) ? a.activeExpressionId : null,
     shoutExpressionId: has(a?.shoutExpressionId) ? a.shoutExpressionId : null,
     addons: normalizeAddons(a?.addons),
+    mouth: normalizeMouthConfig(a?.mouth),
   };
 }
 
@@ -275,6 +278,23 @@ export function removeRoomAddon(avatarId: string, addonId: string): void {
 }
 export function updateRoomAddon(avatarId: string, addonId: string, patch: Partial<Addon>): void {
   mapAddon(avatarId, addonId, (ad) => ({ ...ad, ...patch }));
+}
+
+// ─── Boca / visemas por avatar (Fase 5/6) ───
+export function updateAvatarMouth(avatarId: string, patch: Partial<MouthConfig>): void {
+  mapAvatar(avatarId, (a) => ({ ...a, mouth: { ...(a.mouth ?? defaultMouthConfig()), ...patch } }));
+}
+export function setAvatarVisemeImage(avatarId: string, v: Viseme, url: string): void {
+  mapAvatar(avatarId, (a) => {
+    const m = a.mouth ?? defaultMouthConfig();
+    return { ...a, mouth: { ...m, visemes: { ...m.visemes, [v]: url } } };
+  });
+}
+export function clearAvatarVisemeImage(avatarId: string, v: Viseme): void {
+  mapAvatar(avatarId, (a) => {
+    const m = a.mouth ?? defaultMouthConfig();
+    return { ...a, mouth: { ...m, visemes: { ...m.visemes, [v]: null } } };
+  });
 }
 
 export function resetRoom(): void { room.set(defaultRoom()); }

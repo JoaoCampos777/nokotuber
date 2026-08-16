@@ -70,7 +70,8 @@ export const TOUR_ADVANCED: Tour = {
     { target: "characters", title: "Meus Personagens", body: "Salve seu avatar como um personagem para reutilizá-lo em outras cenas, sem reconfigurar tudo. (Abra a aba Avatar para ver.)" },
     { target: "characters", title: "Personagem padrão", body: "Marque um personagem como padrão (★) para o Nokotuber já abrir com ele. Também dá pra reabrir o último usado." },
     { target: "addons", title: "Acessórios (add-ons)", body: "Adicione óculos, chapéus, coroas e overlays sobre o personagem — cada um com posição, escala e camada próprias. (Modo Avançado, aba Avatar.)" },
-    { target: "simple-advanced", title: "Modo Avançado", body: "Ative o modo Avançado para ver efeitos, reação de voz, expressões e acessórios por personagem." },
+    { target: "visemes", title: "Boca / Visemas", body: "Opcional: em vez de só fechada/aberta, configure formatos de boca por vogal (A/E/I/O/U) — avatar completo ou boca separada. Por ora o viseme é manual (preview)." },
+    { target: "simple-advanced", title: "Modo Avançado", body: "Ative o modo Avançado para ver efeitos, reação de voz, expressões, acessórios e visemas por personagem." },
   ],
 };
 

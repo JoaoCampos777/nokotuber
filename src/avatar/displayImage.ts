@@ -2,6 +2,7 @@ import { derived } from "svelte/store";
 import { currentImageUrl, avatarState, type AvatarState } from "./avatarController";
 import { activeExpression, expressionState } from "../project/expressionStore";
 import { isReacting, activeVoiceReactions, voiceReactionRule } from "../audio/audioStore";
+import { project } from "../project/projectStore";
 import type { ExpressionImages, Expression } from "../project/expressionTypes";
 
 /**
@@ -39,6 +40,14 @@ function expImageForState(images: ExpressionImages | undefined | null, state: Av
  * 2) senão, o avatar global/padrão (currentImageUrl)
  */
 export const displayImageUrl = derived(
-  [effectiveExpression, avatarState, currentImageUrl],
-  ([$exp, $state, $fallback]) => expImageForState($exp?.images, $state) ?? $fallback,
+  [effectiveExpression, avatarState, currentImageUrl, project],
+  ([$exp, $state, $fallback, $project]) => {
+    // Modo visemas "avatar completo": a imagem inteira é o viseme atual (manual).
+    const m = $project.mouth;
+    if (m?.mode === "visemes" && m.kind === "full") {
+      const v = m.visemes[m.manualViseme] ?? m.visemes.rest;
+      if (v) return v;
+    }
+    return expImageForState($exp?.images, $state) ?? $fallback;
+  },
 );
