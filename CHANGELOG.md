@@ -26,6 +26,45 @@ e o versionamento segue (de forma aproximada) o [Versionamento Semântico](https
 
 ---
 
+## [0.4.0] — 2026-08-16 — Personagens, Expressões, Loja e preparação macOS
+
+### Adicionado
+- **Personagens salvos** reutilizáveis entre projetos, com **carregamento
+  automático** e opção de **personagem padrão** ao abrir o app.
+- **Expressões personalizadas** por personagem e **expressão de grito** (troca de
+  rosto quando você fala mais alto), com atalhos de teclado.
+- **Modo Sala com até 10 participantes** (adicionar/remover, camadas).
+- **Sistema de acessórios** sobre o personagem (posição, escala, rotação,
+  opacidade, camada, espelho) — no Solo e por participante na Sala.
+- **Loja Nokotuber**: catálogo de acessórios, itens gratuitos e premium, conta
+  Nokotuber, **Minha Biblioteca** dos itens adquiridos e "Adicionar da Biblioteca".
+- **Visemas / boca por vogais** (formatos de boca A/E/I/O/U, seleção manual) e
+  modo **avatar base + boca separada**.
+- **Preparação para macOS** (permissão de microfone, empacotamento) com validação
+  de build por CI para **Apple Silicon** e **Intel**.
+- **Tutorial/tour guiado** atualizado, incluindo recursos avançados e a Loja.
+
+### Alterado
+- **Novos acessórios agora vêm da Loja/Biblioteca** — a importação livre de PNG foi
+  descontinuada para novos itens; acessórios locais antigos continuam funcionando.
+- **Interface reorganizada** (blocos e seções recolhíveis, modos Simples/Avançado)
+  e controles da Sala mais claros.
+- Melhor **integração** entre personagens, expressões, efeitos e acessórios, e
+  melhor **sincronização de assets** para o Companion.
+
+### Corrigido
+- Estabilidade da conexão Room/Companion e quedas **WebSocket 1006**.
+- **Latência de fala** entre Host e Companion e sincronização de cena.
+- **Download de acessórios da Loja** e o erro ao "Adicionar ao personagem".
+- Responsividade e overflow da interface.
+- Configuração de instalação do backend da Loja (projeto standalone).
+
+### Segurança
+- Pagamento processado apenas no provedor (checkout hospedado); segredos ficam só
+  no backend; a posse de itens é validada no servidor, nunca no aplicativo.
+
+---
+
 ## [0.1.0] — 2026-06-11 — Build de testes (Nokotuber Room Local/VPN)
 
 Primeiro build compartilhado com amigos para testar a detecção de fala por participante.
