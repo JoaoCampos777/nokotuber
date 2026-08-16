@@ -21,9 +21,13 @@
 ## CI (GitHub Actions) — validação de build sem Mac
 Workflow: [`.github/workflows/build-macos.yml`](.github/workflows/build-macos.yml).
 - Dispara em **`workflow_dispatch`** (manual) e em **`pull_request`**.
-- Compila **dois alvos separados**, em runners nativos:
-  - `aarch64-apple-darwin` (Apple Silicon) no runner `macos-14`;
-  - `x86_64-apple-darwin` (Intel) no runner `macos-13`.
+- Compila **dois alvos separados** em runners `macos-14`:
+  - `aarch64-apple-darwin` (Apple Silicon) — **build nativo**;
+  - `x86_64-apple-darwin` (Intel) — **cross-compile** (o SDK do macOS é
+    universal; os runners `macos-13`/Intel estão escassos e em descontinuação
+    no GitHub, por isso o alvo Intel é compilado no runner Apple Silicon).
+    Gera um `.app`/`.dmg` x86_64 válido; um teste em **Mac Intel real**
+    continua pendente para confirmar a execução.
 - Publica os bundles como **Artifacts** (não cria Release): baixe em
   **Actions → run → Artifacts**:
   - `Nokotuber-v0.4.0-macos-apple-silicon`

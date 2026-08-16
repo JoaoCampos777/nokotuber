@@ -28,7 +28,11 @@ jobs:
             runner: macos-14                # runner Apple Silicon (build nativo)
             label: apple-silicon
           - target: x86_64-apple-darwin     # Macs Intel
-            runner: macos-13                # runner Intel (build nativo)
+            runner: macos-14                # cross-compile no Apple Silicon: os
+                                            # runners macos-13 (Intel) são escassos
+                                            # e estão em descontinuação; o SDK do
+                                            # macOS é universal, então o alvo x86_64
+                                            # compila sem um Mac Intel real.
             label: intel
     runs-on: ${{ matrix.runner }}
 
