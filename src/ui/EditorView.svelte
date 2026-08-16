@@ -403,7 +403,7 @@
 
         {#if $uiPrefs.mode === "advanced"}
           <div class="char-lib" data-tour="addons">
-            <SectionAccordion title="Acessórios (add-ons)" storageKey="avatar-addons" open={false} badge={String($project.addons?.length ?? 0)}>
+            <SectionAccordion title="Acessórios" storageKey="avatar-addons" open={false} badge={String($project.addons?.length ?? 0)}>
               <AddonControls addons={$project.addons ?? []}
                 onAdd={addProjectAddon} onRemove={removeProjectAddon} onUpdate={updateProjectAddon} />
             </SectionAccordion>

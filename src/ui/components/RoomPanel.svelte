@@ -222,7 +222,7 @@
                   <RoomExpressionsControls participantId={p.id} avatarId={p.avatarId} />
                 {/if}
                 <button class="fx-toggle" on:click={() => toggleAd(p.id)}>
-                  {adOpen[p.id] ? "▼" : "▶"} Acessórios (add-ons)
+                  {adOpen[p.id] ? "▼" : "▶"} Acessórios
                 </button>
                 {#if adOpen[p.id]}
                   <AddonControls addons={av?.addons ?? []}
