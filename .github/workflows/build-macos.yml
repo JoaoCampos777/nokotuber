@@ -1,22 +1,39 @@
-﻿name: Build macOS and upload to existing release
+name: Build macOS (CI)
+
+# Valida que o Nokotuber COMPILA para macOS (Apple Silicon + Intel) sem precisar
+# de um Mac. Gera os bundles como GitHub Actions Artifacts para teste privado.
+# NÃO cria/publica Release e NÃO anexa a nenhuma release. Não assina/notariza.
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Release tag, exemplo: v0.1.0"
-        required: true
-        type: string
+  workflow_dispatch: {}          # execução manual
+  pull_request:                  # valida o build em PRs
+    paths:
+      - "src/**"
+      - "src-tauri/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/build-macos.yml"
+
+permissions:
+  contents: read                 # só leitura; NÃO precisamos de write (sem release)
 
 jobs:
-  build-macos:
-    runs-on: macos-latest
-
-    permissions:
-      contents: write
+  build:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin   # M1/M2/M3/M4…
+            runner: macos-14                # runner Apple Silicon (build nativo)
+            label: apple-silicon
+          - target: x86_64-apple-darwin     # Macs Intel
+            runner: macos-13                # runner Intel (build nativo)
+            label: intel
+    runs-on: ${{ matrix.runner }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup pnpm
@@ -30,26 +47,36 @@ jobs:
           node-version: "lts/*"
           cache: "pnpm"
 
-      - name: Install Rust targets
+      - name: Setup Rust (+ target)
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+          targets: ${{ matrix.target }}
 
       - name: Cache Rust
         uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
+          key: ${{ matrix.target }}
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Read app version
+        id: ver
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Build macOS universal app
-        run: pnpm tauri build -- --target universal-apple-darwin
+      # Só as dependências do DESKTOP. O store-backend é standalone e NÃO faz parte
+      # deste workspace, então não é instalado nem iniciado aqui (sem Postgres,
+      # sem Mercado Pago, sem .env). O cliente da Loja compila com fallback padrão.
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
 
-      - name: Upload macOS files to existing GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag }}
-        run: |
-          gh release upload "$TAG" src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg --clobber
-          gh release upload "$TAG" src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz --clobber || true
+      # tauri build roda o beforeBuildCommand (pnpm build) e compila o Rust.
+      - name: Build Tauri app (${{ matrix.target }})
+        run: pnpm exec tauri build --target ${{ matrix.target }}
+
+      - name: Upload bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nokotuber-v${{ steps.ver.outputs.version }}-macos-${{ matrix.label }}
+          if-no-files-found: error
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app
