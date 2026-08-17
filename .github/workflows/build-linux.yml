@@ -1,0 +1,119 @@
+name: Build Linux (CI)
+
+# Valida que o Nokotuber COMPILA e EMPACOTA para Linux x86_64 e gera os
+# bundles (AppImage + DEB, e RPM best-effort) como GitHub Actions Artifacts
+# para teste privado. NÃO cria/publica Release. NÃO assina. NÃO roda o
+# store-backend (Postgres/Mercado Pago/.env) — só o desktop é compilado.
+
+on:
+  workflow_dispatch: {}          # execução manual
+  pull_request:                  # valida o build em PRs
+    paths:
+      - "src/**"
+      - "src-tauri/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/build-linux.yml"
+
+permissions:
+  contents: read                 # só leitura; NÃO precisamos de write (sem release)
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-22.04         # base mais antiga => glibc mais compatível
+            label: x86_64                #   com distros não tão recentes; tem
+                                         #   libwebkit2gtk-4.1 (exigido pelo Tauri 2).
+          # Futuro (NÃO habilitado nesta rodada — exige setup de cross/ARM):
+          # - target: aarch64-unknown-linux-gnu
+          #   runner: ubuntu-22.04-arm
+          #   label: aarch64
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Dependências oficiais do Tauri 2 para Ubuntu/Debian (WebKitGTK 4.1).
+      # libayatana-appindicator3-dev entra por padrão da doc do Tauri mesmo o
+      # app não usando tray — é barato e evita erro de link em algumas versões.
+      - name: Install Linux/Tauri deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Setup Rust (+ target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          key: ${{ matrix.target }}
+
+      - name: Read app version
+        id: ver
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Só as dependências do DESKTOP. O store-backend é standalone e NÃO faz
+      # parte deste workspace, então não é instalado nem iniciado aqui (sem
+      # Postgres, sem Mercado Pago, sem .env). O cliente da Loja compila com
+      # fallback padrão de URL.
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      # Etapas de validação pedidas explicitamente (o tauri build também roda o
+      # pnpm build via beforeBuildCommand; manter aqui serve de gate rápido).
+      - name: Build frontend
+        run: pnpm build
+
+      - name: "Cargo check (valida ramos Linux, ex.: discord_rpc unix cfg)"
+        run: cargo check --manifest-path src-tauri/Cargo.toml --target ${{ matrix.target }}
+
+      # AppImage + DEB são OBRIGATÓRIOS: se qualquer um falhar, o job falha.
+      - name: Build Tauri (AppImage + DEB)
+        run: pnpm exec tauri build --target ${{ matrix.target }} --bundles appimage,deb
+
+      # RPM é OPCIONAL/best-effort: reaproveita o binário já compilado e só
+      # re-empacota. continue-on-error garante que uma falha de RPM NÃO derruba
+      # os artifacts de AppImage/DEB já gerados.
+      - name: Build Tauri (RPM, best-effort)
+        continue-on-error: true
+        run: pnpm exec tauri build --target ${{ matrix.target }} --bundles rpm
+
+      - name: Upload bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nokotuber-v${{ steps.ver.outputs.version }}-linux-${{ matrix.label }}
+          if-no-files-found: error
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm
