@@ -6,8 +6,20 @@ name: Build Linux (CI)
 # store-backend (Postgres/Mercado Pago/.env) — só o desktop é compilado.
 
 on:
-  workflow_dispatch: {}          # execução manual
+  workflow_dispatch: {}          # execução manual (funciona quando estiver na main)
   pull_request:                  # valida o build em PRs
+    paths:
+      - "src/**"
+      - "src-tauri/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/build-linux.yml"
+  # TEMPORÁRIO: bootstrap do CI enquanto este workflow ainda não está na branch
+  # default (main). workflow_dispatch exige o arquivo na main; push usa o arquivo
+  # da própria branch. Remover este bloco depois do primeiro run verde / após o
+  # merge para a main.
+  push:
+    branches: [feature/advanced-avatar-system]
     paths:
       - "src/**"
       - "src-tauri/**"
