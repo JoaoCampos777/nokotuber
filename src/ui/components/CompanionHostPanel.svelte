@@ -27,7 +27,7 @@
   </div>
 
   {#if !$companionRoom.enabled}
-    <p class="ck-note">Cada pessoa usa o próprio microfone para controlar seu avatar. Funciona na mesma rede — ou entre casas diferentes via Radmin VPN/Hamachi.</p>
+    <p class="ck-note">Cada pessoa usa o próprio microfone para controlar seu avatar. Funciona na mesma rede — ou entre casas diferentes via VPN de rede (ex.: Radmin/Hamachi no Windows).</p>
     <button class="chip accent full" on:click={createRoom}>Criar sala</button>
   {:else}
     <div class="ck-room">

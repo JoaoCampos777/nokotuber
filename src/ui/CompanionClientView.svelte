@@ -50,11 +50,11 @@
     <button class="link" on:click={openTutorial}>Como funciona?</button>
   </div>
   <h1>Nokotuber Companion</h1>
-  <p class="sub">Controle seu avatar com seu microfone — na mesma rede ou via Radmin/Hamachi.</p>
+  <p class="sub">Controle seu avatar com seu microfone — na mesma rede ou via VPN (ex.: Radmin/Hamachi no Windows).</p>
 
   <label>Seu nome<input bind:value={name} placeholder="Ex: Mark" /></label>
   <label>Endereço do Host<input bind:value={hostUrl} placeholder="Ex: ws://26.xxx.xxx.xxx:8787" /></label>
-  <p class="hint">Use o IP do Host no Radmin/Hamachi. <b>Não use localhost</b> se você estiver em outro PC.</p>
+  <p class="hint">Em redes diferentes, use o IP do Host na sua VPN (Radmin/Hamachi no Windows, ou VPN equivalente no seu sistema). <b>Não use localhost</b> se você estiver em outro PC.</p>
   <label>Código da sala<input bind:value={roomCode} placeholder="Ex: RGXLZL" /></label>
   <label>Microfone
     <div class="row">

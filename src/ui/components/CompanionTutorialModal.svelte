@@ -5,16 +5,16 @@
 
 O Nokotuber Room deixa outra pessoa controlar um avatar da sua sala usando o microfone dela. O Discord continua só para conversar; o Nokotuber usa uma conexão separada só para saber quem está falando.
 
-Para funcionar, todos precisam estar na mesma rede. Em casas diferentes, usem Radmin VPN ou Hamachi para criar uma rede virtual.
+Para funcionar, todos precisam estar na mesma rede. Em casas diferentes, usem uma VPN de rede compatível com o sistema de cada um (ex.: Radmin VPN ou Hamachi no Windows) para criar uma rede virtual.
 
 HOST:
 1. Abra o Nokotuber e vá em Sala.
 2. Clique em Criar sala e depois Iniciar servidor local.
 3. O app mostra código, porta e endereço.
-4. Se usar Radmin/Hamachi, mande o IP virtual mostrado lá. Ex: ws://26.xxx.xxx.xxx:8787
+4. Se usar uma VPN (ex.: Radmin/Hamachi no Windows), mande o IP virtual mostrado lá. Ex: ws://26.xxx.xxx.xxx:8787
 
 COMPANION:
-1. Entre na mesma rede do Host (Radmin/Hamachi).
+1. Entre na mesma rede do Host (mesma LAN ou VPN).
 2. Abra o modo Companion.
 3. Nome, endereço do Host, código da sala, microfone.
 4. Conectar e falar para testar.
@@ -22,7 +22,7 @@ COMPANION:
 Depois: o Host vê seu nome, vincula você a uma Pessoa/avatar, e só o seu avatar reage quando você fala.
 
 Atenção:
-- Não use localhost em outro PC; use o IP do Radmin/Hamachi.
+- Não use localhost em outro PC; use o IP da VPN/LAN do Host.
 - O Host inicia a sala antes do Companion conectar.
 - Se não conectar, libere o Nokotuber no Firewall (rede privada).
 - Confira mesma rede, mesmo código e porta correta.`;
@@ -35,25 +35,25 @@ Atenção:
       <h2>Como usar o Nokotuber Room (Local/VPN)</h2>
       <div class="body">
         <p>Deixa outra pessoa controlar um avatar da sua sala usando o <b>microfone dela</b>. O Discord continua só para conversar; o Nokotuber usa uma conexão separada só para saber quem fala.</p>
-        <p>Todos precisam estar na <b>mesma rede</b>. Em casas diferentes, usem <b>Radmin VPN</b> ou <b>Hamachi</b> para criar uma rede virtual.</p>
+        <p>Todos precisam estar na <b>mesma rede</b>. Em casas diferentes, usem uma <b>VPN de rede</b> compatível com o sistema de cada um (ex.: <b>Radmin VPN</b> ou <b>Hamachi</b> no Windows) para criar uma rede virtual.</p>
         <h3>Para o Host</h3>
         <ol>
           <li>Vá em <b>Sala</b> → <b>Criar sala</b> → <b>Iniciar servidor local</b>.</li>
           <li>O app mostra o código, a porta e o endereço.</li>
-          <li>Usando Radmin/Hamachi, envie o <b>IP virtual</b> de lá. Ex: <code>ws://26.xxx.xxx.xxx:8787</code></li>
+          <li>Usando uma VPN (ex.: Radmin/Hamachi no Windows), envie o <b>IP virtual</b> de lá. Ex: <code>ws://26.xxx.xxx.xxx:8787</code></li>
         </ol>
         <h3>Para o Companion</h3>
         <ol>
-          <li>Entre na mesma rede do Host (Radmin/Hamachi).</li>
+          <li>Entre na mesma rede do Host (mesma LAN ou VPN).</li>
           <li>Abra o modo Companion, digite nome, endereço do Host, código e escolha o microfone.</li>
           <li>Clique em <b>Conectar</b> e fale para testar.</li>
         </ol>
         <p>Depois, o Host vincula você a uma Pessoa/avatar — e só o seu avatar reage quando você fala.</p>
         <h3>Se não conectar</h3>
         <ul>
-          <li>Não use <b>localhost</b> em outro PC — use o IP do Radmin/Hamachi.</li>
+          <li>Não use <b>localhost</b> em outro PC — use o IP da VPN/LAN do Host.</li>
           <li>O Host precisa <b>iniciar a sala antes</b>.</li>
-          <li>Libere o Nokotuber no <b>Firewall do Windows</b> (rede privada).</li>
+          <li>Libere a porta do Nokotuber no <b>firewall</b> do Host (rede privada; no Windows, "redes privadas").</li>
           <li>Confira: mesma rede, mesmo código, porta correta.</li>
         </ul>
       </div>

@@ -26,9 +26,9 @@ export const TOUR_ROOM: Tour = {
     { title: "Host e Companion", body: "O Host é quem cria a sala. O Companion é quem entra nela para controlar um avatar com o próprio microfone." },
     { target: "mode-toggle", title: "1. Ligue a Sala", body: "Ative o modo Sala aqui em cima. A aba Sala aparece com tudo que você precisa." },
     { target: "room-block", title: "2. Crie e inicie", body: "Em Começar: crie a sala e inicie o servidor local. O servidor aceita as conexões dos Companions." },
-    { target: "room-address", title: "3. Envie o endereço", body: "Copie o endereço ws:// e mande para o amigo. Em casas diferentes, usem Radmin VPN ou Hamachi (não use localhost no outro PC)." },
+    { target: "room-address", title: "3. Envie o endereço", body: "Copie o endereço ws:// e mande para o amigo. Em casas diferentes, usem uma VPN de rede (ex.: Radmin/Hamachi no Windows) — não use localhost no outro PC." },
     { target: "companions", title: "4. Vincule os participantes", body: "Quando alguém entrar como Companion, escolha qual Pessoa/avatar ele vai controlar." },
-    { title: "Dica de firewall", body: "Na primeira vez, o Firewall do Windows pode pedir permissão — libere o Nokotuber na rede privada." },
+    { title: "Dica de firewall", body: "Na primeira vez, o firewall do sistema pode pedir permissão — libere o Nokotuber na rede privada (no Windows, marque \"redes privadas\"; no Linux, garanta a porta 8787/TCP acessível)." },
     { target: "perf-window", title: "Modo Janela p/ OBS", body: "Host e Companion podem abrir o Modo Janela para capturar o avatar no OBS." },
   ],
 };
@@ -54,7 +54,7 @@ export const TOUR_COMPANION: Tour = {
   steps: [
     { title: "Entrar como Companion", body: "O Companion controla um avatar na sala do Host usando o próprio microfone." },
     { title: "1. Abra o Modo Companion", body: "Na aba Sala, clique em Modo Companion (ou peça para o Host te enviar o endereço)." },
-    { title: "2. Nome e endereço", body: "Digite seu nome e cole o endereço do Host (ws://IP:8787). Em casas diferentes, use o IP do Radmin/Hamachi." },
+    { title: "2. Nome e endereço", body: "Digite seu nome e cole o endereço do Host (ws://IP:8787). Em casas diferentes, use o IP do Host na VPN (Radmin/Hamachi no Windows)." },
     { title: "3. Código e microfone", body: "Digite o código da sala e escolha seu microfone. Depois clique em Conectar." },
     { title: "4. Ajuste e teste", body: "Ajuste a sensibilidade e fale para testar. O Host vincula você a uma Pessoa/avatar." },
     { title: "5. Modo Janela", body: "Se você também for fazer live, abra o Modo Janela para capturar seu avatar no OBS." },
