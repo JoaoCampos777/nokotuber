@@ -1,10 +1,11 @@
 # Nokotuber no Linux — build e teste (v0.4.0)
 
-> Estado: **🟠 CI preparado; build Linux ainda não executado.**
-> O código é portável e o workflow (GitHub Actions) foi escrito para compilar e
-> empacotar `x86_64` (AppImage + DEB, e RPM best-effort), mas **nada foi rodado
-> ainda no CI nem testado num Linux real**. Não afirme que "funciona no Linux"
-> antes de um teste funcional. Progressão de status:
+> Estado: **🟡 Build Linux validado em CI; teste funcional em Linux real pendente.**
+> O workflow (GitHub Actions) **compilou e empacotou** com sucesso o alvo
+> `x86_64` e gerou **AppImage + DEB + RPM** como Artifacts. Ainda **não** foi
+> testado num Linux de verdade. Não afirme que "funciona no Linux" antes de um
+> teste funcional (abrir o app, microfone, salvar projeto, Sala/Companion etc.).
+> Progressão de status:
 > `🟠 preparado` → `🟡 validado em CI` → `🟢 testado em Linux real`.
 
 ## Formatos gerados
@@ -73,14 +74,12 @@ rodar. Pode movê-lo para onde quiser (ex.: `~/Apps/`).
 ```bash
 sudo apt install ./Nokotuber_0.4.0_amd64.deb
 ```
-(Use o nome real do arquivo gerado.) Para **remover**, confirme antes o nome do
-pacote instalado e então remova:
+O pacote declara as dependências `libwebkit2gtk-4.1-0` e `libgtk-3-0` (o `apt`
+resolve automaticamente). O nome do pacote instalado é **`nokotuber`**
+(confirmado no `control` do `.deb` gerado pelo CI), então para **remover**:
 ```bash
-dpkg -l | grep -i noko      # descobre o nome exato do pacote
-sudo apt remove <nome-do-pacote>
+sudo apt remove nokotuber
 ```
-> ⚠️ O nome do pacote (`Package:`) só é confirmado inspecionando o `.deb` real.
-> Não documente `apt remove nokotuber` como certo sem checar com `dpkg -l`.
 
 ### RPM (Fedora/openSUSE/RHEL-like) — se gerado
 ```bash

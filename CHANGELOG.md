@@ -42,6 +42,9 @@ e o versionamento segue (de forma aproximada) o [Versionamento Semântico](https
   modo **avatar base + boca separada**.
 - **Preparação para macOS** (permissão de microfone, empacotamento) com validação
   de build por CI para **Apple Silicon** e **Intel**.
+- **Build experimental para Linux (x86_64)** com validação por CI: pacotes
+  **AppImage** e **Debian (.deb)** — e **RPM** experimental — disponíveis para
+  testes. Ainda pendente de teste funcional em Linux real.
 - **Tutorial/tour guiado** atualizado, incluindo recursos avançados e a Loja.
 
 ### Alterado
@@ -51,6 +54,9 @@ e o versionamento segue (de forma aproximada) o [Versionamento Semântico](https
   e controles da Sala mais claros.
 - Melhor **integração** entre personagens, expressões, efeitos e acessórios, e
   melhor **sincronização de assets** para o Companion.
+- Textos de rede da Sala/Companion reescritos para linguagem **multiplataforma**
+  (Radmin/Hamachi passam a ser citados como exemplo no Windows), sem mudança de
+  protocolo — pensando em Linux e macOS.
 
 ### Corrigido
 - Estabilidade da conexão Room/Companion e quedas **WebSocket 1006**.
