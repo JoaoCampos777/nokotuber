@@ -10,8 +10,11 @@ import { invoke } from "@tauri-apps/api/core";
  */
 
 // ─── Config: base URL da API ───
+// Default de BUILD: VITE_STORE_API_URL (produção nos builds distribuídos) com
+// fallback para localhost (dev). A URL pública NÃO é segredo. O usuário ainda
+// pode sobrescrever em runtime (modo Avançado → salvo em localStorage).
 const CFG_KEY = "nokotuber:storeApi:v1";
-const DEFAULT_BASE = "http://localhost:8080";
+const DEFAULT_BASE = (import.meta.env.VITE_STORE_API_URL ?? "").trim() || "http://localhost:8080";
 function loadBase(): string { try { return localStorage.getItem(CFG_KEY) || DEFAULT_BASE; } catch { return DEFAULT_BASE; } }
 export const storeApiBase = writable<string>(loadBase());
 storeApiBase.subscribe((v) => { try { localStorage.setItem(CFG_KEY, v); } catch {} });
