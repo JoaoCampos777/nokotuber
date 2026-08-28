@@ -1,8 +1,10 @@
 {
-  "name": "pngtuber-studio",
+  "name": "nokotuber",
   "version": "0.4.0",
   "private": true,
   "type": "module",
+  "description": "Aplicativo de PNGTuber para desktop: avatar em PNG que reage ao microfone.",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -19,7 +21,7 @@
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
     "@tauri-apps/cli": "^2.0.0",
     "@tsconfig/svelte": "^5.0.0",
-    "@types/node": "^25.9.3",
+    "@types/node": "^24.0.0",
     "svelte": "^4.0.0",
     "svelte-check": "^3.0.0",
     "typescript": "^5.0.0",
