@@ -36,14 +36,18 @@ jobs:
             label: intel
     runs-on: ${{ matrix.runner }}
 
-    # URL pública da Store API e origens extras da CSP. NÃO são segredos (a URL
-    # pública não é credencial), mas variam por ambiente, então vêm das
-    # Variables do repositório. Se ficarem vazias, o build cai no padrão
-    # http://localhost:8080 — bom para CI de validação, inútil num instalador
-    # distribuído. Ver scripts/csp.mjs.
+    # URL pública da Store API e origens extras da CSP. NÃO são segredos (URL
+    # pública não é credencial), mas variam por ambiente e este repositório é
+    # PÚBLICO — então vêm das Variables do Actions, não escritas aqui.
+    #
+    # NOKOTUBER_REQUIRE_STORE_API_URL=1 faz o build FALHAR se a variable não
+    # estiver definida, em vez de gerar silenciosamente um instalador apontando
+    # para http://localhost:8080 (foi o que aconteceu com os pacotes de macOS).
+    # Configure em: Settings > Secrets and variables > Actions > Variables.
     env:
       VITE_STORE_API_URL: ${{ vars.VITE_STORE_API_URL }}
       NOKOTUBER_CSP_EXTRA_ORIGINS: ${{ vars.NOKOTUBER_CSP_EXTRA_ORIGINS }}
+      NOKOTUBER_REQUIRE_STORE_API_URL: "1"
 
 
     steps:
@@ -86,6 +90,7 @@ jobs:
       # Gera a CSP deste build a partir de VITE_STORE_API_URL. Sem isto o
       # instalador sai com a CSP padrão (só localhost) e a Loja é bloqueada no
       # aplicativo empacotado — erro que NÃO aparece em `tauri dev`.
+      # Falha aqui, cedo e com mensagem, se a variable não estiver configurada.
       - name: Gerar CSP do build
         run: pnpm csp:config
 

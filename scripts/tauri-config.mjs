@@ -23,6 +23,41 @@ import { buildCspFromEnv, DEFAULT_STORE_API_URL } from "./csp.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const target = path.join(root, "src-tauri", "tauri.conf.csp.json");
 
+const api = process.env.VITE_STORE_API_URL?.trim();
+
+/**
+ * Em CI (ou em qualquer build destinado a distribuição) a URL da Loja é
+ * OBRIGATÓRIA. Sem ela o instalador sai apontando para http://localhost:8080 e
+ * a Loja simplesmente não existe para quem instalar — foi o que aconteceu com
+ * os pacotes de macOS. Melhor quebrar o build com uma mensagem clara.
+ *
+ * Ligado por NOKOTUBER_REQUIRE_STORE_API_URL=1 (os workflows definem isso).
+ */
+const exigeApi = ["1", "true", "yes", "sim"].includes(
+  (process.env.NOKOTUBER_REQUIRE_STORE_API_URL ?? "").trim().toLowerCase(),
+);
+if (exigeApi && !api) {
+  console.error(
+    [
+      "",
+      "[csp] ERRO: VITE_STORE_API_URL não está definida.",
+      "",
+      "  Este build seria distribuído apontando para http://localhost:8080,",
+      "  ou seja, com a Loja inacessível para quem instalasse.",
+      "",
+      "  No GitHub Actions: Settings > Secrets and variables > Actions > Variables,",
+      "  crie a variable VITE_STORE_API_URL com a URL pública da Store API",
+      "  (ex.: https://SEU-APP.up.railway.app). Não é segredo, mas também não",
+      "  fica escrita no workflow.",
+      "",
+      "  Localmente: defina no .env da raiz do app, ou rode sem",
+      "  NOKOTUBER_REQUIRE_STORE_API_URL para aceitar o padrão local.",
+      "",
+    ].join("\n"),
+  );
+  process.exit(1);
+}
+
 const { csp, origins } = buildCspFromEnv();
 
 writeFileSync(
@@ -38,7 +73,6 @@ writeFileSync(
   "utf8",
 );
 
-const api = process.env.VITE_STORE_API_URL?.trim();
 console.log(`[csp] Store API: ${api || `${DEFAULT_STORE_API_URL} (padrão — VITE_STORE_API_URL não definida)`}`);
 console.log(`[csp] origens liberadas: ${origins.join(", ")}`);
 console.log(`[csp] patch gravado em: ${path.relative(root, target)}`);

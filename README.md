@@ -108,6 +108,20 @@ Tauri 2 + Rust no shell nativo. O servidor da Sala usa `std::net` +
 `tungstenite`. **Não usa SvelteKit** — o `svelte.config.js` existe apenas para
 o `vitePreprocess`.
 
+## A Loja de acessórios
+
+O app tem uma Loja de acessórios embutida. O **serviço** por trás dela — a API
+de catálogo, contas, pagamento e downloads, e o painel administrativo — é
+**closed-source** e vive num repositório privado separado. O que está aqui é o
+cliente: `src/store/storeClient.ts` fala com essa API por HTTP.
+
+O aplicativo funciona por completo sem a Loja. Se ela estiver fora do ar ou você
+não configurar `VITE_STORE_API_URL`, o app avisa e todo o resto continua
+funcionando — você pode importar seus próprios PNGs como acessórios de graça,
+sem conta.
+
+O código do app é MIT. A Loja não faz parte dessa licença.
+
 ## Documentação
 
 - [`CHANGELOG.md`](CHANGELOG.md) — o que mudou em cada versão
