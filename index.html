@@ -3,9 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta 
-  content="default-src 'self'; connect-src 'self' ws://localhost:* ws://127.0.0.1:* ws://*:* wss://*:*; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline';"
-  />
+    <!-- A CSP não fica aqui: em desenvolvimento ela é injetada pelo plugin
+         devCspPlugin (vite.config.ts) e, no aplicativo empacotado, pelo próprio
+         Tauri a partir de app.security.csp. Fonte única: scripts/csp.mjs.
+         (Havia aqui uma <meta> sem http-equiv, portanto sem nenhum efeito.) -->
     <title>Nokotuber</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }

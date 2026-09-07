@@ -1,6 +1,8 @@
 node_modules/
 dist/
 src-tauri/target/
+# CSP gerada por build a partir de VITE_STORE_API_URL (ver scripts/tauri-config.mjs)
+src-tauri/tauri.conf.csp.json
 .DS_Store
 *.log
 .env

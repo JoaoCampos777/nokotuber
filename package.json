@@ -10,8 +10,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:dev": "pnpm tauri dev",
-    "tauri:build": "pnpm tauri build"
+    "tauri:dev": "pnpm csp:config && pnpm tauri dev --config src-tauri/tauri.conf.csp.json",
+    "tauri:build": "pnpm csp:config && pnpm tauri build --config src-tauri/tauri.conf.csp.json",
+    "csp:config": "node --env-file-if-exists=.env scripts/tauri-config.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
