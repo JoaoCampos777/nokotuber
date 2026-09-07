@@ -138,6 +138,13 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 /**
  * Baixa o arquivo do produto (verifica entitlement no backend) e retorna data URL.
  * Usa cache no diretório do app (não localStorage) para não rebaixar toda vez.
+ *
+ * DECISÃO CONSCIENTE (cache x revogação): um asset já baixado continua utilizável
+ * mesmo que o entitlement seja revogado depois (reembolso). É deliberado — o
+ * acessório já está aplicado no personagem do usuário e invalidar o cache
+ * quebraria o uso offline legítimo de quem comprou de boa-fé. A revogação vale
+ * para tudo que exige o servidor: catálogo, biblioteca e novos downloads
+ * (/library/download revalida o entitlement a cada entrega).
  */
 export async function downloadProductAsset(productId: string, version?: string): Promise<{ dataUrl: string; version: string }> {
   // 1) cache local (diretório do app) — evita rebaixar
@@ -150,6 +157,18 @@ export async function downloadProductAsset(productId: string, version?: string):
   console.log("[store] requesting authorized download", productId);
   const meta = await request<{ downloadUrl: string; version: string }>(`/library/product/${productId}/download`, { auth: true });
   console.log("[store] entitlement verified; downloading asset");
+
+  // A versão do PRODUTO (usada na sondagem acima) pode não ser a do ASSET — o
+  // admin pode subir a versão do produto sem publicar um arquivo novo. Sem esta
+  // segunda sondagem, com a versão que o servidor acabou de informar, o cache
+  // nunca acertava e o arquivo era rebaixado a cada uso.
+  if (meta.version !== version) {
+    try {
+      const cached = await invoke<string | null>("read_marketplace_asset", { productId, version: meta.version });
+      if (cached) { console.log("[store] asset cache hit (versão do asset)", productId, meta.version); return { dataUrl: cached, version: meta.version }; }
+    } catch { /* fora do Tauri / sem cache — segue para download */ }
+  }
+
   let res: Response;
   try { res = await fetch(meta.downloadUrl); } catch { throw new StoreError(0, "download_failed"); }
   if (!res.ok) throw new StoreError(res.status, "download_failed");

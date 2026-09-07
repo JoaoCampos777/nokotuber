@@ -28,18 +28,31 @@
   function say(m: string, t: "info" | "error" | "ok" = "info") { msg = m; msgType = t; }
   function errText(e: unknown): string {
     const code = e instanceof StoreError ? e.code : "erro";
+    // Cobre todos os códigos que a Store API pode devolver ao app. Sem isto,
+    // erros comuns (senha curta, excesso de tentativas) viravam o genérico
+    // "Ocorreu um erro", que não diz ao usuário o que fazer.
     const map: Record<string, string> = {
       network_error: "Não foi possível falar com a Loja. Confira o endereço da API e se o servidor está no ar.",
+      invalid_input: "Confira os dados: e-mail válido e senha de pelo menos 8 caracteres.",
       invalid_credentials: "E-mail ou senha incorretos.", email_taken: "Este e-mail já tem conta.",
       already_owned: "Você já possui este item.", product_not_found: "Produto indisponível.",
+      not_found: "Item não encontrado na Loja.",
       not_entitled: "Item não disponível nesta conta.", checkout_failed: "Falha ao iniciar o pagamento. Tente de novo.",
-      asset_unavailable: "O arquivo deste acessório não está disponível.",
+      asset_unavailable: "O arquivo deste acessório ainda não foi publicado pela Loja.",
       file_missing: "O arquivo deste acessório não está disponível.",
+      bad_path: "O arquivo deste acessório não está disponível.",
       download_failed: "Não foi possível baixar este acessório.",
       read_error: "Não foi possível processar o acessório.",
       invalid_or_expired: "O link do acessório expirou. Tente de novo.",
       unauthorized: "Sua sessão expirou. Entre novamente.",
       invalid_refresh: "Sua sessão expirou. Entre novamente.",
+      forbidden: "Esta conta não tem permissão para isso.",
+      // Excesso de tentativas: o Fastify responde 429 com error "Too Many Requests".
+      "Too Many Requests": "Muitas tentativas seguidas. Espere um minuto e tente de novo.",
+      http_429: "Muitas tentativas seguidas. Espere um minuto e tente de novo.",
+      http_500: "A Loja teve um problema interno. Tente de novo em instantes.",
+      http_502: "A Loja está indisponível no momento. Tente de novo em instantes.",
+      http_503: "A Loja está indisponível no momento. Tente de novo em instantes.",
     };
     return map[code] ?? "Ocorreu um erro. Tente novamente.";
   }
