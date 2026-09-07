@@ -67,8 +67,15 @@ da Sala, janelas extras) só funcionam dentro do `tauri dev`.
 ## Build
 
 ```bash
-pnpm tauri build
+pnpm tauri:build
 ```
+
+> **Loja e CSP.** O endereço da Store API entra na Content-Security-Policy do
+> aplicativo empacotado. Use **`pnpm tauri:build`** (e não `pnpm tauri build`):
+> ele roda `pnpm csp:config` antes, gerando a CSP a partir de
+> `VITE_STORE_API_URL` e `NOKOTUBER_CSP_EXTRA_ORIGINS` (ver `.env.example`).
+> Sem isso o instalador permite apenas `http://localhost:8080` e a Loja é
+> bloqueada pela webview — falha que **não** aparece em `tauri dev`.
 
 Os instaladores saem em `src-tauri/target/release/bundle/`:
 

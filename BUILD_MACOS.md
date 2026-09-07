@@ -46,9 +46,16 @@ Workflow: [`.github/workflows/build-macos.yml`](.github/workflows/build-macos.ym
 ## Build
 ```bash
 pnpm install
-pnpm tauri build                      # gera .app + .dmg para a arquitetura atual
-pnpm tauri build --target universal-apple-darwin   # binário universal (Intel+Apple Silicon)
+pnpm tauri:build                      # gera .app + .dmg para a arquitetura atual
+pnpm csp:config && pnpm tauri build --config src-tauri/tauri.conf.csp.json   --target universal-apple-darwin     # binário universal (Intel+Apple Silicon)
 ```
+> **Loja e CSP.** O endereço da Store API entra na Content-Security-Policy do
+> aplicativo empacotado. Use **`pnpm tauri:build`** (e não `pnpm tauri build`):
+> ele roda `pnpm csp:config` antes, gerando a CSP a partir de
+> `VITE_STORE_API_URL` e `NOKOTUBER_CSP_EXTRA_ORIGINS` (ver `.env.example`).
+> Sem isso o instalador permite apenas `http://localhost:8080` e a Loja é
+> bloqueada pela webview — falha que **não** aparece em `tauri dev`.
+
 Saída em `src-tauri/target/release/bundle/macos/*.app` e `.../dmg/*.dmg`.
 
 ## Permissão de microfone

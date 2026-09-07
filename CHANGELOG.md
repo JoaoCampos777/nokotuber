@@ -16,13 +16,34 @@ e o versionamento segue (de forma aproximada) o [Versionamento Semântico](https
 ## [Não lançado]
 
 ### Adicionado
-- _(anote aqui o que entrar antes do próximo build)_
+- Script `pnpm tauri:build` (e `pnpm csp:config`), que gera a Content-Security-Policy
+  do aplicativo a partir de `VITE_STORE_API_URL` e `NOKOTUBER_CSP_EXTRA_ORIGINS`.
+- A mesma CSP passa a valer em desenvolvimento (plugin no `vite.config.ts`), para
+  que um endereço de Loja não autorizado apareça já no `pnpm dev`.
+- Workflows de build (Linux/macOS) passam a gerar a CSP e a receber a URL da Loja
+  pelas *Variables* do repositório.
 
 ### Alterado
--
+- Mensagens de erro da Loja cobrem todos os códigos que a API pode devolver
+  (dados inválidos, excesso de tentativas, indisponibilidade), em vez do genérico
+  "Ocorreu um erro".
+- Removidos os restos do template Tauri+SvelteKit que nunca foram usados
+  (`src/routes/`, `src/app.html`, `src-tauri/src/lib.rs` e a seção `[lib]`).
 
 ### Corrigido
--
+- **A Loja não funcionava no aplicativo instalado.** A CSP embutida pelo Tauri
+  não permitia o endereço da API nem as imagens do catálogo, então o catálogo, o
+  login e os downloads eram bloqueados na versão empacotada — e nada disso
+  aparecia durante o desenvolvimento, onde a CSP não era aplicada. A `<meta>` de
+  CSP do `index.html`, que estava sem `http-equiv` e portanto sem efeito algum,
+  foi removida.
+- Acessórios comprados eram baixados de novo a cada uso quando a versão do
+  produto era diferente da versão do arquivo publicado.
+
+### Segurança
+- Um item só aparece na Loja depois que o arquivo do acessório existe de fato,
+  evitando compras de itens que não podiam ser baixados.
+- Proteção contra tentativas repetidas de senha no login e no cadastro.
 
 ---
 
